@@ -42,15 +42,16 @@
   {%- endfor -%}
   {%- assign base = s.url | relative_url -%}
   {%- assign npath = key | append: '/' -%}
-  {%- include dispname.html path=npath fallback=s.title %}
+  {%- include dispname.html path=npath fallback=s.title -%}
+  {%- include itemdesc.html path=npath fallback=s.description %}
   <li>
   {%- if has_sub %}
     <details>
-      <summary><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-order="{{ s.order }}" data-count="{{ count }}">{{ disp }}</a><span class="count">{{ count }}</span></summary>
+      <summary><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-order="{{ s.order }}" data-count="{{ count }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></summary>
       {%- include navtree.html prefix=root base=base key=key %}
     </details>
   {%- else %}
-    <div class="row"><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-order="{{ s.order }}" data-count="{{ count }}">{{ disp }}</a><span class="count">{{ count }}</span></div>
+    <div class="row"><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-order="{{ s.order }}" data-count="{{ count }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></div>
   {%- endif %}
   </li>
 {%- endfor %}

@@ -67,15 +67,16 @@
     {%- assign has_tag = 1 -%}
   {%- endif -%}
   {%- assign npath = sub | remove_first: '_writing/' -%}
-  {%- include dispname.html path=npath fallback=name %}
+  {%- include dispname.html path=npath fallback=name -%}
+  {%- include itemdesc.html path=npath %}
   <li>
   {%- if has_sub %}
     <details>
-      <summary><a href="{{ include.base }}#{{ sid }}" data-key="{{ include.key }}" data-sid="{{ sid }}" data-dir="{{ sub | escape }}" data-count="{{ count }}" data-tag="{{ has_tag }}">{{ disp }}</a><span class="count">{{ count }}</span></summary>
+      <summary><a href="{{ include.base }}#{{ sid }}" data-key="{{ include.key }}" data-sid="{{ sid }}" data-dir="{{ sub | escape }}" data-count="{{ count }}" data-tag="{{ has_tag }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></summary>
       {%- include navtree.html prefix=sub base=include.base key=include.key id=sid %}
     </details>
   {%- else %}
-    <div class="row"><a href="{{ include.base }}#{{ sid }}" data-key="{{ include.key }}" data-sid="{{ sid }}" data-dir="{{ sub | escape }}" data-count="{{ count }}" data-tag="{{ has_tag }}">{{ disp }}</a><span class="count">{{ count }}</span></div>
+    <div class="row"><a href="{{ include.base }}#{{ sid }}" data-key="{{ include.key }}" data-sid="{{ sid }}" data-dir="{{ sub | escape }}" data-count="{{ count }}" data-tag="{{ has_tag }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></div>
   {%- endif %}
   </li>
 {%- endfor %}

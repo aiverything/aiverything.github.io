@@ -1,0 +1,14 @@
+---
+layout: page
+title: 소개
+permalink: /about/
+editor: about
+---
+{%- comment -%} 소개 글은 고칠 때마다 _data/about/ 에 새 파일(text)로 쌓이고, 가장 나중 것을 보여 준다 {%- endcomment -%}
+{%- if site.data.about -%}
+  {%- assign versions = site.data.about | sort -%}
+  {%- assign latest = versions | last %}
+{{ latest[1].text | markdownify }}
+{%- else %}
+<p>아직 소개 글이 없습니다.</p>
+{%- endif %}

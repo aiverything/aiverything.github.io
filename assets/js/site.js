@@ -66,6 +66,10 @@
   function writeUrl(dir) {
     return body.dataset.write + (dir ? '#new:' + encodeURIComponent(dir) : '');
   }
+  // GitHub 에서 파일 하나를 고치는 화면의 주소
+  function editUrl(path) {
+    return repo + '/edit/' + enc(branch) + '/' + enc(path);
+  }
   // GitHub 에서 파일 하나를 지우는 화면의 주소
   function deleteUrl(path) {
     return repo + '/delete/' + enc(branch) + '/' + enc(path);
@@ -79,6 +83,35 @@
   }
   function newFileUrl(name, text) {
     return repo + '/new/' + enc(branch) + '?filename=' + encodeURIComponent(name) + '&value=' + encodeURIComponent(text);
+  }
+  // 클릭 안에서 바로 끝나는 복사 (새 탭이 열려도 끊기지 않게)
+  function copyNow(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { /* 아래에서 다시 시도 */ }
+    document.body.removeChild(ta);
+    if (!ok && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () {});
+    }
+    return ok;
+  }
+  // 새 파일을 GitHub 의 새 파일 화면으로 넘긴다. link 의 주소를 맞추고 'filled'·'copied'·'failed' 를 돌려준다.
+  // 짧으면 내용을 주소에 채우고, 길면(주소에 다 담을 수 없어) 복사한 뒤 이름만 채운 빈 화면을 연다.
+  var URL_LIMIT = 2000;
+  function handOff(link, name, text) {
+    var full = newFileUrl(name, text);
+    if (full.length <= URL_LIMIT) {
+      link.href = full;
+      return 'filled';
+    }
+    link.href = newFileUrl(name, '');
+    return copyNow(text) ? 'copied' : 'failed';
   }
   // 한국 시간의 지금 시각을 '260930-231205' 꼴로 (파일 이름에 쓴다)
   function stamp() {
@@ -102,6 +135,8 @@
   //   o.url(name)      그 이름으로 만들 파일의 GitHub 주소
   //   o.initial()      (있으면) 양식을 열 때 칸에 채울 이름
   //   o.note           이름이 괜찮을 때 보여 줄 안내
+  //   o.free           참이면 이름이 아니라 자유로운 글 (글자 제한 없음)
+  //   o.empty          참이면 비워서 보낼 수 있다 (설명 지우기)
   function itemForm(id, o) {
     var opener = document.createElement('button');
     opener.type = 'button';
@@ -130,10 +165,10 @@
     function refresh() {
       var name = input.value.trim();
       var problem = '';
-      if (/[\/\\#?%"<>|*:]/.test(name)) problem = '이름에 / \\ # ? % " < > | * : 는 쓸 수 없습니다';
-      else if (/^[._]/.test(name)) problem = '이름은 . 이나 _ 로 시작할 수 없습니다';
-      else if (name) problem = o.problem(name);
-      if (name && !problem) {
+      if (!o.free && /[\/\\#?%"<>|*:]/.test(name)) problem = '이름에 / \\ # ? % " < > | * : 는 쓸 수 없습니다';
+      else if (!o.free && /^[._]/.test(name)) problem = '이름은 . 이나 _ 로 시작할 수 없습니다';
+      else if (name || o.empty) problem = o.problem(name);
+      if ((name || o.empty) && !problem) {
         go.href = o.url(name);
         go.removeAttribute('aria-disabled');
         hint.textContent = o.note;
@@ -159,7 +194,7 @@
       if (go.hasAttribute('href')) go.click();
     });
     opener.addEventListener('click', function () { show(form.hidden); });
-    refresh();
+    go.setAttribute('aria-disabled', 'true');  // 열기 전에는 눌리지 않는다. 열 때와 칠 때마다 다시 본다
     return { opener: opener, form: form, refresh: refresh, close: function () { show(false); } };
   }
   var COMMIT_NOTE = 'GitHub 화면에서 Commit changes 를 누르면 1~2분 뒤 반영됩니다';
@@ -216,9 +251,22 @@
     remove.type = 'button';
     remove.textContent = '이 항목 지우기';
     remove.addEventListener('click', function () { if (current) askDelete(current); });
+    // 설명 고치기: 항목을 골랐을 때 제목 아래에 나오는 한두 문장. 비워서 보내면 설명이 없어진다
+    var describe = itemForm('item-desc', {
+      open: '이 항목 설명 고치기', field: '설명', go: 'GitHub 에서 바꾸기', note: COMMIT_NOTE, free: true, empty: true,
+      initial: function () { return current ? current.dataset.desc : ''; },
+      problem: function (text) { return current && text === current.dataset.desc ? '지금 설명과 같습니다' : ''; },
+      url: function (text) {
+        var path = current.dataset.dir.replace(/^_writing\//, '');
+        return newFileUrl('_data/names/' + stamp() + '.yml', 'path: ' + yamlText(path) + '\ndescription: ' + yamlText(text) + '\n');
+      }
+    });
+    forms.push(describe);
     bar.appendChild(add.opener);
     bar.appendChild(rename.opener);
+    bar.appendChild(describe.opener);
     bar.appendChild(remove);
+    head.appendChild(describe.form);
     head.appendChild(add.form);
     head.appendChild(rename.form);
   }
@@ -238,7 +286,7 @@
       var secItem = document.createElement('li');
       secItem.appendChild(secForm.opener);
       sideLinksForForm.appendChild(secItem);
-      nav.appendChild(secForm.form);
+      nav.insertBefore(secForm.form, nav.querySelector('.side-copy'));
     }
   }
   // ── 글 옮기기 (주인 전용) ──
@@ -442,7 +490,8 @@
   }
   // 글 쓰기 쪽(assets/js/write.js)이 쓰는 것들
   window.siteOwner = {
-    owner: owner, canWrite: !!canWrite, links: links, itemLabel: itemLabel, newFileUrl: newFileUrl, showDraftCount: showDraftCount
+    owner: owner, canWrite: !!canWrite, links: links, itemLabel: itemLabel, newFileUrl: newFileUrl, handOff: handOff,
+    stamp: stamp, showDraftCount: showDraftCount
   };
 
   if (owner && !forced) {
@@ -547,12 +596,49 @@
       var bar = ownerBar(postHead);
       setCurrent(null, path.slice(0, path.lastIndexOf('/') + 1));
       var edit = ownerLink('이 글 고치기');
-      edit.href = repo + '/edit/' + enc(branch) + '/' + enc(path);
+      edit.href = editUrl(path);
       bar.insertBefore(edit, bar.firstChild);
       addMoveForm(bar, postHead, path);
       var del = ownerLink('이 글 지우기');
       del.href = deleteUrl(path);
       bar.appendChild(del);
+    }
+    // 소개 쪽: 사이트 안의 편집 화면으로. 그 밖의 쪽(없는 주소 안내 등): 그 쪽의 파일을 고치는 링크
+    if (canWrite && postHead && (body.dataset.about || body.dataset.page)) {
+      var pageBar = document.createElement('p');
+      pageBar.className = 'owner-bar';
+      var pageEdit;
+      if (body.dataset.about) {
+        pageEdit = document.createElement('a');
+        pageEdit.textContent = '소개 글 고치기';
+        pageEdit.href = body.dataset.about;
+      } else {
+        pageEdit = ownerLink('이 쪽 고치기');
+        pageEdit.href = editUrl(body.dataset.page);
+      }
+      pageBar.appendChild(pageEdit);
+      postHead.appendChild(pageBar);
+    }
+    // 첫 화면: 소개 문장은 양식으로 고치고(_data/site/ 에 기록), 사이트 이름·필명은 _config.yml 에 있다
+    var homeLead = document.querySelector('.home-lead');
+    if (canWrite && homeLead) {
+      var homeBar = document.createElement('p');
+      homeBar.className = 'owner-bar';
+      var introForm = itemForm('site-intro', {
+        open: '소개 문장 고치기', field: '소개 문장', go: 'GitHub 에서 바꾸기', note: COMMIT_NOTE, free: true,
+        initial: function () { return homeLead.textContent; },
+        problem: function (text) { return text === homeLead.textContent ? '지금 문장과 같습니다' : ''; },
+        url: function (text) { return newFileUrl('_data/site/' + stamp() + '.yml', 'intro: ' + yamlText(text) + '\n'); }
+      });
+      var homeEdit = ownerLink('사이트 이름·필명 고치기');
+      homeEdit.href = editUrl('_config.yml');
+      homeBar.appendChild(introForm.opener);
+      homeBar.appendChild(homeEdit);
+      var homeOwner = document.createElement('div');
+      homeOwner.className = 'home-owner';
+      homeOwner.appendChild(homeBar);
+      homeOwner.appendChild(introForm.form);
+      homeLead.insertAdjacentElement('afterend', homeOwner);
     }
     if (canWrite) setupDrag();
     setupPost();
@@ -610,7 +696,10 @@
 
     title.textContent = link.textContent;
     count.textContent = '글 ' + shown + '편';
-    if (desc) desc.hidden = sid !== '';
+    if (desc) {
+      desc.textContent = link.dataset.desc || '';
+      desc.hidden = !link.dataset.desc;
+    }
     empty.hidden = shown > 0;
     document.title = link.textContent + ' | ' + siteTitle;
 

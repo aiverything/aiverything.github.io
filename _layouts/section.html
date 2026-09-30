@@ -25,9 +25,9 @@ layout: default
     <h1 id="sel-title">{{ disp }}</h1>
     <span class="panel-count" id="sel-count">글 {{ docs.size }}편</span>
   </div>
-  {%- if page.description %}
-  <p class="lead" id="sel-desc">{{ page.description }}</p>
-  {%- endif %}
+  {%- assign kpath = key | append: '/' -%}
+  {%- include itemdesc.html path=kpath fallback=page.description %}
+  <p class="lead" id="sel-desc"{% if idesc == '' %} hidden{% endif %}>{{ idesc }}</p>
 </header>
 
 {{ content }}

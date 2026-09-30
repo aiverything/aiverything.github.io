@@ -1,5 +1,5 @@
-/* 배치: 왼쪽에 항목 나무(고정), 오른쪽에 고른 항목의 글 요약 또는 글 본문. 모두 왼쪽 맞춤.
-   색과 제목 칸은 원고지에서 가져왔다 — 흰 종이, 먹색 글자, 붉은 괘선. */
+/* 배치: 왼쪽에 사이트 이름과 항목 나무(고정), 오른쪽에 고른 항목의 글 요약 또는 글 본문. 모두 왼쪽 맞춤.
+   색: 흰 종이, 먹색 글자, 붉은 강조색 하나. */
 :root {
   --paper: #ffffff;
   --side: #f5f6f7;
@@ -98,27 +98,17 @@ time { color: var(--ink-3); font-size: 0.85rem; font-variant-numeric: tabular-nu
 }
 .side-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 
-/* 사이트 이름: 한 글자가 원고지 한 칸 (띄어쓰기도 한 칸) */
+/* 사이트 이름: 제목 글꼴로 크게 */
 .site-title {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 36px);
   flex: 1;
-  padding: 0 1px 1px 0;
-}
-.site-title span {
-  display: grid;
-  place-items: center;
-  height: 36px;
-  margin: 0 -1px -1px 0;
-  border: 1px solid var(--accent);
-  background: var(--paper);
+  min-width: 0;
   font-family: var(--font-title);
-  font-size: 22px;
+  font-size: 1.75rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
 }
-
-.site-title .pair { font-size: 19px; }
+.site-title:hover { color: var(--accent); }
 
 .nav-toggle { display: none; }
 .side-nav { margin-top: 2.2rem; }
@@ -177,6 +167,7 @@ time { color: var(--ink-3); font-size: 0.85rem; font-variant-numeric: tabular-nu
   color: var(--ink-2);
 }
 .side-links a:hover { color: var(--accent); }
+.side-copy { margin: 1.6rem 0 0; padding-left: 0.3rem; color: var(--ink-3); font-size: 0.8rem; }
 
 /* ── 오른쪽: 내용 ── */
 .page { min-width: 0; padding: 3.3rem clamp(1.5rem, 5vw, 4.5rem) 3rem; }
@@ -389,6 +380,8 @@ html:not(.js) .share { display: none; }
 }
 .writer-actions .confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; color: var(--accent); font-size: 0.9rem; }
 
+.home-owner { margin: -1.9rem 0 2.6rem; }
+.home-owner .owner-bar { margin: 0; }
 .owner-hint { margin: 0.5rem 0 0; color: var(--ink-3); font-size: 0.85rem; }
 @media (hover: none) { .owner-hint { display: none; } }
 
@@ -426,9 +419,7 @@ html:not(.js) .share { display: none; }
   .side { border-right: 0; border-bottom: 1px solid var(--rule); }
   .side-inner { position: static; max-height: none; padding: 1.1rem 1.25rem; overflow: visible; }
   .side-head { align-items: center; }
-  .site-title { grid-template-columns: repeat(auto-fill, 32px); }
-  .site-title span { height: 32px; font-size: 19px; }
-  .site-title .pair { font-size: 17px; }
+  .site-title { font-size: 1.45rem; }
   .js .nav-toggle {
     display: block;
     flex-shrink: 0;

@@ -10,7 +10,6 @@
   root.hidden = false;
 
   var KEY = 'drafts';
-  var URL_LIMIT = 2000;  // 이보다 긴 주소는 GitHub 가 받지 못할 수 있어 클립보드로 넘긴다
 
   function el(id) { return document.getElementById(id); }
   var list = el('draft-list');
@@ -153,24 +152,6 @@
     publish.title = blocked;
   }
 
-  // 클릭 안에서 바로 끝나는 복사 (새 탭이 열려도 끊기지 않게)
-  function copyNow(s) {
-    var ta = document.createElement('textarea');
-    ta.value = s;
-    ta.setAttribute('readonly', '');
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) { /* 아래에서 다시 시도 */ }
-    document.body.removeChild(ta);
-    if (!ok && navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(s).catch(function () {});
-    }
-    return ok;
-  }
-
   publish.addEventListener('click', function (e) {
     save();
     refreshPublish();
@@ -180,17 +161,10 @@
       return;
     }
     var file = fileOf(cur);
-    var full = api.newFileUrl(file.name, file.text);
-    var note;
-    if (full.length <= URL_LIMIT) {
-      publish.href = full;
-      note = 'GitHub 화면에 글이 채워져 열립니다. Commit changes 를 누르면 1~2분 뒤 게시됩니다.';
-    } else {
-      publish.href = api.newFileUrl(file.name, '');
-      note = copyNow(file.text)
-        ? '글을 복사했습니다. 열린 GitHub 화면의 빈 본문 칸에 붙여 넣고(Ctrl+V) Commit changes 를 누르면 1~2분 뒤 게시됩니다.'
-        : '글을 복사하지 못했습니다. 아래 본문을 직접 복사해 GitHub 화면에 붙여 넣어 주세요. 맨 위에 제목과 날짜 머리말도 필요합니다.';
-    }
+    var how = api.handOff(publish, file.name, file.text);
+    var note = how === 'filled' ? 'GitHub 화면에 글이 채워져 열립니다. Commit changes 를 누르면 1~2분 뒤 게시됩니다.'
+      : how === 'copied' ? '글을 복사했습니다. 열린 GitHub 화면의 빈 본문 칸에 붙여 넣고(Ctrl+V) Commit changes 를 누르면 1~2분 뒤 게시됩니다.'
+      : '글을 복사하지 못했습니다. 아래 본문을 직접 복사해 GitHub 화면에 붙여 넣어 주세요. 맨 위에 제목과 날짜 머리말도 필요합니다.';
     after.textContent = note + ' 게시를 마친 뒤에는 이 임시저장 글을 지워도 됩니다.';
     after.hidden = false;
   });
@@ -241,4 +215,86 @@
     start = drafts.slice().sort(function (a, b) { return b.updated - a.updated; })[0];
   }
   edit(start || blank(''));
+})();
+
+// 소개 글 고치기 쪽: 지금 올라가 있는 소개 글을 칸에 채워 두고, 고친 글을 새 기록 파일로 넘긴다.
+// 쓰는 중인 내용은 글 쓰기와 마찬가지로 이 브라우저에만 임시저장된다.
+(function () {
+  var api = window.siteOwner;
+  var root = document.getElementById('about-editor');
+  if (!api || !api.owner || !root) return;
+  document.getElementById('writer-off').hidden = true;
+  root.hidden = false;
+
+  var KEY = 'draft-about';
+  var text = document.getElementById('about-body');
+  var status = document.getElementById('about-status');
+  var save = document.getElementById('about-save');
+  var after = document.getElementById('about-after');
+  var live = '';
+  try { live = JSON.parse(document.getElementById('about-source').textContent) || ''; } catch (e) { /* 원문을 못 읽으면 빈 칸에서 시작 */ }
+
+  var draft = null;
+  try { draft = localStorage.getItem(KEY); } catch (e) { /* 저장소를 못 쓰면 임시저장 없이 */ }
+  text.value = draft !== null ? draft : live;
+  status.textContent = draft !== null && draft !== live ? '임시저장해 둔 내용을 불러왔습니다' : '지금 올라가 있는 소개 글입니다';
+
+  function problem() {
+    if (!api.canWrite) return '저장소 주소를 알 수 없어 저장할 수 없습니다';
+    if (!text.value.trim()) return '소개 글을 쓰면 저장할 수 있습니다';
+    if (text.value.trim() === live.trim()) return '지금 올라가 있는 글과 같습니다';
+    return '';
+  }
+  function refresh() {
+    var blocked = problem();
+    if (blocked) {
+      save.removeAttribute('href');
+      save.setAttribute('aria-disabled', 'true');
+    } else {
+      save.href = api.newFileUrl('_data/about/' + api.stamp() + '.json', '');
+      save.removeAttribute('aria-disabled');
+    }
+    save.title = blocked;
+    return blocked;
+  }
+  var timer = null;
+  function keep() {
+    var ok = true;
+    try { localStorage.setItem(KEY, text.value); } catch (e) { ok = false; }
+    status.textContent = ok ? '임시저장했습니다' : '임시저장하지 못했습니다. 내용을 따로 복사해 두세요';
+  }
+  text.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(keep, 500);
+    refresh();
+  });
+  window.addEventListener('pagehide', function () { if (text.value !== live) keep(); });
+  document.getElementById('about-form').addEventListener('submit', function (e) { e.preventDefault(); });
+
+  save.addEventListener('click', function (e) {
+    var blocked = refresh();
+    if (blocked) {
+      e.preventDefault();
+      status.textContent = blocked;
+      return;
+    }
+    var body = JSON.stringify({ text: text.value.replace(/\s+$/, '') }, null, 0) + '\n';
+    var how = api.handOff(save, '_data/about/' + api.stamp() + '.json', body);
+    after.textContent = (how === 'filled' ? 'GitHub 화면에 내용이 채워져 열립니다. Commit changes 를 누르면 1~2분 뒤 소개 쪽에 반영됩니다.'
+      : how === 'copied' ? '내용을 복사했습니다. 열린 GitHub 화면의 빈 본문 칸에 붙여 넣고(Ctrl+V) Commit changes 를 누르면 1~2분 뒤 소개 쪽에 반영됩니다.'
+      : '내용을 복사하지 못했습니다. 다시 눌러 보거나 다른 브라우저에서 해 보세요.')
+      + ' GitHub 화면의 내용은 글이 한 줄로 이어져 보이지만 그대로 두면 됩니다.';
+    after.hidden = false;
+  });
+
+  document.getElementById('about-reset').addEventListener('click', function () {
+    clearTimeout(timer);
+    text.value = live;
+    try { localStorage.removeItem(KEY); } catch (e) { /* 지울 것이 없다 */ }
+    status.textContent = '지금 올라가 있는 소개 글로 되돌렸습니다';
+    after.hidden = true;
+    refresh();
+  });
+
+  refresh();
 })();

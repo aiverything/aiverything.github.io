@@ -1,0 +1,13 @@
+{%- comment -%}
+  사이트 소개 문장을 intro 에 넣는다 (내보내는 글자는 없다).
+  고친 기록은 _data/site/ 의 파일들(intro)이고 나중 것이 이긴다. 없으면 _config.yml 의 description.
+{%- endcomment -%}
+{%- assign intro = site.description -%}
+{%- if site.data.site -%}
+  {%- assign si_all = site.data.site | sort -%}
+  {%- for si in si_all -%}
+    {%- if si[1].intro -%}
+      {%- assign intro = si[1].intro -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}

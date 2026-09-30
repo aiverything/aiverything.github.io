@@ -1,7 +1,8 @@
 ---
 layout: default
 ---
-<p class="home-lead">{{ site.description }}</p>
+{%- include siteintro.html %}
+<p class="home-lead">{{ intro }}</p>
 <h1 class="list-head">최근 글</h1>
 
 {% assign recent = site.writing | sort: 'date' | reverse -%}

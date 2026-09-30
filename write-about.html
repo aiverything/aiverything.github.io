@@ -1,0 +1,34 @@
+---
+layout: default
+title: 소개 글 고치기
+permalink: /write/about/
+writer: true
+---
+{%- comment -%} 지금 올라가 있는 소개 글의 원문 (about.html 과 같은 기록에서) {%- endcomment -%}
+{%- assign about_text = '' -%}
+{%- if site.data.about -%}
+  {%- assign versions = site.data.about | sort -%}
+  {%- assign latest = versions | last -%}
+  {%- assign about_text = latest[1].text -%}
+{%- endif -%}
+<header class="panel-head">
+  <div class="panel-title">
+    <h1>소개 글 고치기</h1>
+  </div>
+  <p class="lead" id="writer-off">이 쪽은 글쓴이가 소개 글을 고치는 곳입니다.</p>
+</header>
+
+<div id="about-editor" hidden>
+  <form class="writer-form" id="about-form">
+    <label for="about-body">소개 글 <span class="hint">문단은 빈 줄로 나눕니다.</span></label>
+    <textarea id="about-body" rows="14"></textarea>
+
+    <p class="writer-status" id="about-status" role="status"></p>
+    <div class="writer-actions">
+      <a class="go" id="about-save" target="_blank" rel="noopener">저장하기</a>
+      <button type="button" id="about-reset">지금 올라가 있는 글로 되돌리기</button>
+    </div>
+    <p class="writer-note" id="about-after" role="status" hidden></p>
+  </form>
+  <script type="application/json" id="about-source">{{ about_text | jsonify | replace: '</', '<\/' }}</script>
+</div>

@@ -3,13 +3,14 @@
     include.path      '_writing/' 을 뗀 폴더 경로, 끝에 '/' ('기술/예시 주제/')
     include.fallback  이름을 바꾼 적이 없을 때의 이름 (폴더 이름 또는 Section 제목)
   이름 바꾼 기록은 _data/names/ 의 파일들(path·name)이고, 파일 이름(시각) 순으로 나중 것이 이긴다.
+  (같은 곳에 설명을 고친 기록(path·description)도 들어간다 — itemdesc.html)
   폴더 이름과 주소는 바뀌지 않는다.
 {%- endcomment -%}
 {%- assign disp = include.fallback -%}
 {%- if site.data.names -%}
   {%- assign dn_all = site.data.names | sort -%}
   {%- for dn in dn_all -%}
-    {%- if dn[1].path == include.path -%}
+    {%- if dn[1].path == include.path and dn[1].name -%}
       {%- assign disp = dn[1].name -%}
     {%- endif -%}
   {%- endfor -%}

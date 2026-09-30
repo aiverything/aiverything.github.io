@@ -1,0 +1,15 @@
+{%- comment -%}
+  항목의 설명을 idesc 에 넣는다 (내보내는 글자는 없다).
+    include.path      '_writing/' 을 뗀 폴더 경로, 끝에 '/' ('기술/예시 주제/')
+    include.fallback  설명을 고친 적이 없을 때의 설명 (Section 은 sections/이름.md 의 description, 소주제는 없음)
+  설명을 고친 기록은 이름 바꾼 기록과 같은 곳(_data/names/)에 description 으로 들어가고, 나중 것이 이긴다.
+{%- endcomment -%}
+{%- assign idesc = include.fallback | default: '' -%}
+{%- if site.data.names -%}
+  {%- assign id_all = site.data.names | sort -%}
+  {%- for id in id_all -%}
+    {%- if id[1].path == include.path and id[1].description != nil -%}
+      {%- assign idesc = id[1].description -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
