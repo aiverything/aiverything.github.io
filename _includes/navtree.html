@@ -30,9 +30,23 @@
     {%- endif -%}
   {%- endif -%}
 {%- endfor -%}
-{%- assign names = names | uniq | sort %}
+{%- assign names = names | uniq | sort -%}
+{%- comment -%} 순서: 폴더 이름순, 끌어서 바꾼 기록이 있으면 그 순서 먼저 {%- endcomment -%}
+{%- assign opath = include.prefix | remove_first: '_writing/' -%}
+{%- include ordpref.html path=opath -%}
+{%- assign ordered = '' | split: '' -%}
+{%- for oname in pref -%}
+  {%- if names contains oname -%}
+    {%- assign ordered = ordered | push: oname -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- for oname in names -%}
+  {%- unless pref contains oname -%}
+    {%- assign ordered = ordered | push: oname -%}
+  {%- endunless -%}
+{%- endfor %}
 <ul>
-{%- for name in names -%}
+{%- for name in ordered -%}
   {%- assign sub = include.prefix | append: name | append: '/' -%}
   {%- assign sublen = sub | size -%}
   {%- comment -%} sub 에 바로 든 파일은 경로 조각이 (sub 의 깊이 + 1)개, 그보다 많으면 하위 소주제가 있다 {%- endcomment -%}

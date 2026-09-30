@@ -388,6 +388,11 @@ html:not(.js) .share { display: none; }
 /* 글을 끌어 옮기기: 끄는 글, 놓을 항목, 놓은 뒤 확인하는 줄 */
 .entry[draggable="true"] { cursor: grab; }
 .entry.is-dragging { opacity: 0.45; }
+/* 항목 순서 바꾸기: 끄는 항목, 놓일 자리(위쪽 줄·아래쪽 줄) */
+.tree [draggable="true"] { cursor: grab; }
+.tree li.is-dragging { opacity: 0.45; }
+.tree li.drop-before { box-shadow: 0 -2px 0 var(--accent); }
+.tree li.drop-after { box-shadow: 0 2px 0 var(--accent); }
 .tree .drop-target { border-radius: 3px; outline: 2px solid var(--accent); outline-offset: -2px; background: var(--accent-soft); }
 .move-bar {
   margin: 0 0 1.8rem;

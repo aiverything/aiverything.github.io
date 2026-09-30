@@ -1,0 +1,15 @@
+{%- comment -%}
+  한 항목 아래 항목들의 바꾼 순서를 pref(폴더 이름 배열)에 넣는다 (내보내는 글자는 없다).
+    include.path  위 항목의 경로. '_writing/' 을 떼고 끝에 '/' ('기술/'), Section 들의 순서는 ''
+  순서를 바꾼 기록은 _data/order/ 의 파일들(parent·items)이고, 파일 이름(시각) 순으로 나중 것이 이긴다.
+  기록에 없는 항목(나중에 생긴 것)은 기록된 항목들 뒤에 원래 순서대로 온다.
+{%- endcomment -%}
+{%- assign pref = '' | split: '' -%}
+{%- if site.data.order -%}
+  {%- assign op_all = site.data.order | sort -%}
+  {%- for op in op_all -%}
+    {%- if op[1].parent == include.path and op[1].items -%}
+      {%- assign pref = op[1].items -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}

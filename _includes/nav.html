@@ -16,8 +16,25 @@
   {%- assign mark = it.relative_path | remove_first: '_items/' | split: '.md' | first | prepend: '_writing/' | append: '/-' -%}
   {%- assign marks = marks | push: mark -%}
 {%- endfor -%}
-<ul class="tree">
+{%- comment -%} Section 순서: sections/이름.md 의 order 순, 끌어서 바꾼 기록이 있으면 그 순서 먼저 {%- endcomment -%}
+{%- include ordpref.html path='' -%}
+{%- assign secs = '' | split: '' -%}
+{%- for okey in pref -%}
+  {%- assign ofile = okey | append: '.md' -%}
+  {%- for s in sections -%}
+    {%- if s.name == ofile -%}
+      {%- assign secs = secs | push: s -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endfor -%}
 {%- for s in sections -%}
+  {%- assign okey = s.name | split: '.' | first -%}
+  {%- unless pref contains okey -%}
+    {%- assign secs = secs | push: s -%}
+  {%- endunless -%}
+{%- endfor -%}
+<ul class="tree">
+{%- for s in secs -%}
   {%- assign key = s.name | split: '.' | first -%}
   {%- assign root = '_writing/' | append: key | append: '/' -%}
   {%- assign rlen = root | size -%}

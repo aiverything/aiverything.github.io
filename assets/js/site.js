@@ -4,7 +4,8 @@
 //  - 주인 전용 링크: 주소 끝에 ?write=on 을 붙여 한 번 들어온 브라우저에서만
 //    글 쓰기·고치기·지우기, 항목 만들기·이름 바꾸기·지우기가 보인다 (?write=off 로 끈다).
 //    보이기만 가리는 것이고, 저장 권한은 GitHub 가 따로 확인한다.
-//    쓰기를 켠 브라우저에서는 요약 목록의 글을 왼쪽 나무의 항목으로 끌어다 놓아 옮길 수도 있다.
+//    쓰기를 켠 브라우저에서는 요약 목록의 글을 왼쪽 나무의 항목으로 끌어다 놓아 옮길 수도 있고,
+//    나무의 항목을 위아래로 끌어 순서를 바꿀 수도 있다.
 //  - 글 쪽에서: 글 끝의 '링크 복사'·'공유' 단추, 본문을 복사해 갈 때 끝에 출처 붙이기.
 (function () {
   var body = document.body;
@@ -306,7 +307,9 @@
 
   // 한 번 더 확인하는 줄: 하려는 일을 적고, GitHub 로 가는 링크(있으면)와 닫는 단추를 둔다
   var noticeBar = null;
-  function notice(message, goLabel, makeUrl, noteText) {
+  //   makeUrl(clicked)  링크의 주소. 누르는 순간(clicked = true)에 한 번 더 부른다
+  //   onCancel          (있으면) 취소했을 때 할 일
+  function notice(message, goLabel, makeUrl, noteText, onCancel) {
     if (!noticeBar) {
       noticeBar = document.createElement('div');
       noticeBar.className = 'move-bar';
@@ -322,12 +325,15 @@
     var close = document.createElement('button');
     close.type = 'button';
     close.textContent = goLabel ? '취소' : '닫기';
-    close.addEventListener('click', function () { noticeBar.hidden = true; });
+    close.addEventListener('click', function () {
+      noticeBar.hidden = true;
+      if (onCancel) onCancel();
+    });
     if (goLabel) {
       var go = ownerLink(goLabel);
       go.className = 'go';
-      go.href = makeUrl();
-      go.addEventListener('click', function () { go.href = makeUrl(); });
+      go.href = makeUrl(false);
+      go.addEventListener('click', function () { go.href = makeUrl(true); });
       actions.appendChild(go);
     }
     actions.appendChild(close);
@@ -426,6 +432,90 @@
     });
   }
 
+  // ── 항목 순서 바꾸기 (주인 전용) ──
+  // 나무의 항목을 같은 단계 안에서 위아래로 끌어 순서를 바꾼다. 놓으면 나무에서 바로 자리가 바뀌고,
+  // 확인 줄의 링크로 _data/order/ 에 기록 파일(위 항목과 아래 항목들의 순서)을 만든다.
+  function itemName(link) {
+    return link.dataset.sid === '' ? link.dataset.key : link.dataset.dir.replace(/\/$/, '').split('/').pop();
+  }
+  function ownLink(li) {
+    return li.querySelector(':scope > details > summary > a, :scope > .row > a');
+  }
+  function setupItemDrag() {
+    var moving = null;   // 끌고 있는 항목의 <li>
+    var before = new Map();  // 단계(ul)마다 놓기 전의 순서 (취소하면 되돌린다)
+    function clearMarks() {
+      Array.prototype.forEach.call(nav.querySelectorAll('.drop-before, .drop-after'), function (el) {
+        el.classList.remove('drop-before', 'drop-after');
+      });
+    }
+    // 끌고 있는 항목과 같은 단계에 있는, 마우스 아래의 항목
+    function siblingAt(target) {
+      for (var el = target; el && el !== nav; el = el.parentElement) {
+        if (el.tagName === 'LI' && el.parentElement === moving.parentElement) return el;
+      }
+      return null;
+    }
+    links.forEach(function (a) {
+      var row = a.parentElement;  // <summary> 또는 .row
+      a.draggable = false;        // 링크가 아니라 줄 전체가 끌리게
+      row.draggable = true;
+      row.addEventListener('dragstart', function (e) {
+        moving = row.closest('li');
+        moving.classList.add('is-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', a.textContent);
+      });
+      row.addEventListener('dragend', function () {
+        if (moving) moving.classList.remove('is-dragging');
+        moving = null;
+        clearMarks();
+      });
+    });
+    nav.addEventListener('dragover', function (e) {
+      if (!moving) return;
+      var over = siblingAt(e.target);
+      clearMarks();
+      if (!over || over === moving) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      var box = over.getBoundingClientRect();
+      over.classList.add(e.clientY < box.top + box.height / 2 ? 'drop-before' : 'drop-after');
+    });
+    nav.addEventListener('drop', function (e) {
+      if (!moving) return;
+      var over = siblingAt(e.target);
+      if (!over || over === moving) return;
+      e.preventDefault();
+      var list = moving.parentElement;
+      var after = over.classList.contains('drop-after');
+      clearMarks();
+      if (!before.has(list)) before.set(list, Array.prototype.slice.call(list.children));
+      list.insertBefore(moving, after ? over.nextSibling : over);
+
+      var items = Array.prototype.slice.call(list.children).map(ownLink);
+      var first = items[0];
+      var parent = first.dataset.sid === '' ? '' : first.dataset.dir.replace(/^_writing\//, '').replace(/[^/]+\/$/, '');
+      var upper = ancestors(first).map(function (x) { return x.textContent; }).join(' / ');
+      var text = 'parent: ' + yamlText(parent) + '\nitems:\n' + items.map(function (x) { return '  - ' + yamlText(itemName(x)) + '\n'; }).join('');
+      var name = '';
+      notice((upper ? upper + ' 아래 항목' : 'Section') + '의 순서를 이렇게 바꿉니다: ' + items.map(function (x) { return x.textContent; }).join(', '),
+        'GitHub 에서 바꾸기',
+        function (clicked) {
+          name = '_data/order/' + stamp() + '.yml';
+          var full = newFileUrl(name, text);
+          if (full.length <= URL_LIMIT) return full;
+          if (clicked) copyNow(text);  // 항목이 아주 많으면 주소에 다 못 담아 복사해서 넘긴다
+          return newFileUrl(name, '');
+        },
+        '왼쪽 나무에는 미리 반영해 보였습니다. ' + COMMIT_NOTE + '. 취소하면 원래 순서로 돌아갑니다',
+        function () {
+          before.get(list).forEach(function (li) { list.appendChild(li); });
+          before.delete(list);
+        });
+    });
+  }
+
   // 끌 수 없는 기기(휴대폰)를 위해 글 쪽에서도 옮길 수 있게: 항목을 골라 옮기는 양식
   function addMoveForm(bar, head, path) {
     var opener = document.createElement('button');
@@ -493,6 +583,8 @@
     owner: owner, canWrite: !!canWrite, links: links, itemLabel: itemLabel, newFileUrl: newFileUrl, handOff: handOff,
     stamp: stamp, showDraftCount: showDraftCount
   };
+
+  if (canWrite) setupItemDrag();
 
   if (owner && !forced) {
     var off = document.createElement('li');
@@ -660,7 +752,7 @@
     addItemForms(ownerBar(panelHead), panelHead);
     var dragHint = document.createElement('p');
     dragHint.className = 'owner-hint';
-    dragHint.textContent = '글을 왼쪽의 항목으로 끌어다 놓으면 그 항목으로 옮길 수 있습니다.';
+    dragHint.textContent = '글을 왼쪽의 항목으로 끌어다 놓으면 그 항목으로 옮길 수 있고, 왼쪽의 항목은 위아래로 끌어 순서를 바꿀 수 있습니다.';
     panelHead.appendChild(dragHint);
     setupDrag();
   }
