@@ -1,0 +1,40 @@
+---
+layout: default
+---
+{%- comment -%}
+  Section 쪽: 이 Section 의 글 전부를 요약 목록으로 그려 둔다.
+  왼쪽에서 소주제를 고르면 assets/js/site.js 가 주소의 #소주제id 에 맞는 글만 남기고 제목을 바꾼다.
+{%- endcomment -%}
+{%- assign key = page.name | split: '.' | first -%}
+{%- assign root = '_writing/' | append: key | append: '/' -%}
+{%- assign rlen = root | size -%}
+{%- capture eff_table -%}{%- include_cached efftable.html -%}{%- endcapture -%}
+{%- assign effs = eff_table | split: '|' -%}
+{%- assign docs = '' | split: '' -%}
+{%- for doc in site.writing -%}
+  {%- assign head = effs[forloop.index0] | slice: 0, rlen -%}
+  {%- if head == root -%}
+    {%- assign docs = docs | push: doc -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- assign docs = docs | sort: 'date' | reverse -%}
+<header class="panel-head">
+  <nav class="crumbs" id="sel-crumbs" aria-label="위치" hidden></nav>
+  <div class="panel-title">
+    {%- include secname.html key=key %}
+    <h1 id="sel-title">{{ disp }}</h1>
+    <span class="panel-count" id="sel-count">글 {{ docs.size }}편</span>
+  </div>
+  {%- if page.description %}
+  <p class="lead" id="sel-desc">{{ page.description }}</p>
+  {%- endif %}
+</header>
+
+{{ content }}
+
+<ol class="entries" id="post-list">
+  {%- for doc in docs -%}
+    {%- include entry.html doc=doc -%}
+  {%- endfor %}
+</ol>
+<p class="empty" id="sel-empty"{% if docs.size > 0 %} hidden{% endif %}>이 항목에는 아직 글이 없습니다.</p>

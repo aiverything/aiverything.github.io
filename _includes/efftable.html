@@ -1,0 +1,8 @@
+{%- comment -%}
+  모든 글의 놓인 자리(effpath.html 참고)를 site.writing 순서대로 '|' 로 이어 내보낸다.
+  한 번만 계산하도록 include_cached 로 부르고, 받는 쪽에서 split: '|' 해서 site.writing 과 같은 번호로 쓴다.
+{%- endcomment -%}
+{%- for doc in site.writing -%}
+  {%- include effpath.html path=doc.relative_path -%}
+  {{- eff -}}|
+{%- endfor -%}

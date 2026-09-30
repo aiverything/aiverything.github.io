@@ -1,0 +1,13 @@
+{%- comment -%}
+  Section 의 보이는 이름을 disp 에 넣는다: 이름 바꾼 기록 > sections/이름.md 의 title > 폴더 이름.
+    include.key  Section 폴더 이름
+{%- endcomment -%}
+{%- assign sn_title = include.key -%}
+{%- assign sn_file = include.key | append: '.md' -%}
+{%- for sn in site.pages -%}
+  {%- if sn.layout == 'section' and sn.name == sn_file and sn.title -%}
+    {%- assign sn_title = sn.title -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- assign sn_path = include.key | append: '/' -%}
+{%- include dispname.html path=sn_path fallback=sn_title -%}

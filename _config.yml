@@ -1,0 +1,50 @@
+# 사이트 기본 정보 — 이 세 줄만 고치면 전체에 반영됩니다
+title: aiverything
+author: Complex
+description: 수필과 기술 메모, 찾아볼 정보를 모아 둡니다.
+
+font: gothic   # 글꼴: gothic(고딕) 또는 myeongjo(명조)
+
+branch: main    # 글을 올리는 브랜치 ('이 글 고치기' 링크가 이 브랜치의 파일을 연다)
+
+lang: ko
+timezone: Asia/Seoul
+markdown: kramdown
+future: true   # 날짜가 앞선 글도 올리는 즉시 보이게 (숨기려면 글 머리말에 published: false)
+
+# 글은 모두 _writing/ 아래에 둡니다: 첫 단계 폴더 = Section, 그 아래 폴더 = 소주제
+collections:
+  writing:
+    output: true
+    permalink: /:path/
+  # 아직 글이 없는 항목을 나무에 보이게 하는 이름표: _items/기술/새 항목.md (내용 없이 --- 두 줄)
+  items:
+    output: false
+
+defaults:
+  - scope:
+      path: ""
+      type: writing
+    values:
+      layout: post
+  - scope:
+      path: sections
+    values:
+      layout: section
+      permalink: /:basename/
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-include-cache
+
+feed:
+  collections:
+    - writing
+
+exclude:
+  - README.md
+  - new.sh
+  - new-item.sh
+  - rename-item.sh
+  - move-post.sh

@@ -1,0 +1,46 @@
+{%- comment -%}
+  요약 목록의 글 한 편.
+    include.doc      글
+    include.section  참이면 위치에 Section 이름도 적는다 (첫 화면처럼 여러 Section 이 섞일 때)
+  요약은 글 머리말의 summary, 없으면 첫 문단.
+{%- endcomment -%}
+{%- include effpath.html path=include.doc.relative_path -%}
+{%- assign eparts = eff | split: '/' -%}
+{%- assign esid = '' -%}
+{%- assign ewhere = '' -%}
+{%- assign epath = eparts[1] | append: '/' -%}
+{%- if include.section -%}
+  {%- assign ekey = eparts[1] -%}
+  {%- include secname.html key=ekey -%}
+  {%- assign ewhere = disp -%}
+{%- endif -%}
+{%- for part in eparts offset: 2 -%}
+  {%- unless forloop.last -%}
+    {%- assign eslug = part | slugify -%}
+    {%- assign epath = epath | append: part | append: '/' -%}
+    {%- include dispname.html path=epath fallback=part -%}
+    {%- if forloop.first -%}
+      {%- assign esid = eslug -%}
+    {%- else -%}
+      {%- assign esid = esid | append: '--' | append: eslug -%}
+    {%- endif -%}
+    {%- if ewhere == '' -%}
+      {%- assign ewhere = disp -%}
+    {%- else -%}
+      {%- assign ewhere = ewhere | append: ' / ' | append: disp -%}
+    {%- endif -%}
+  {%- endunless -%}
+{%- endfor -%}
+{%- assign esum = include.doc.summary | default: include.doc.excerpt | strip_html | strip_newlines | strip | truncate: 170 %}
+<li class="entry" data-key="{{ eparts[1] }}" data-sid="{{ esid }}" data-path="{{ include.doc.relative_path | escape }}" data-title="{{ include.doc.title | escape }}">
+  <a class="entry-link" href="{{ include.doc.url | relative_url }}">
+    <h2 class="entry-title">{{ include.doc.title }}</h2>
+    {%- if esum != '' %}
+    <p class="entry-summary">{{ esum }}</p>
+    {%- endif %}
+  </a>
+  <p class="entry-meta">
+    <span class="where">{{ ewhere }}</span>
+    <time datetime="{{ include.doc.date | date_to_xmlschema }}">{{ include.doc.date | date: '%Y. %-m. %-d.' }}</time>
+  </p>
+</li>

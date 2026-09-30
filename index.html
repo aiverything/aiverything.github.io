@@ -1,0 +1,16 @@
+---
+layout: default
+---
+<p class="home-lead">{{ site.description }}</p>
+<h1 class="list-head">최근 글</h1>
+
+{% assign recent = site.writing | sort: 'date' | reverse -%}
+{% if recent.size > 0 -%}
+<ol class="entries">
+  {%- for doc in recent limit: 10 -%}
+    {%- include entry.html doc=doc section=true -%}
+  {%- endfor %}
+</ol>
+{%- else %}
+<p class="empty">아직 올린 글이 없습니다.</p>
+{%- endif %}

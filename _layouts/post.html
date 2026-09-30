@@ -1,0 +1,83 @@
+---
+layout: default
+---
+{%- comment -%} 글이 놓인 자리: _writing/Section/소주제/…/파일.md (옮긴 글은 옮긴 자리, effpath.html 참고) {%- endcomment -%}
+{%- capture eff_table -%}{%- include_cached efftable.html -%}{%- endcapture -%}
+{%- assign effs = eff_table | split: '|' -%}
+{%- include effpath.html path=page.relative_path -%}
+{%- assign here = eff -%}
+{%- assign parts = here | split: '/' -%}
+{%- assign fname = parts | last -%}
+{%- assign dlen = here | size | minus: fname.size -%}
+{%- assign dir = here | slice: 0, dlen -%}
+{%- assign section_url = '/' | append: parts[1] | append: '/' | relative_url -%}
+
+{%- comment -%} 같은 폴더의 글을 날짜순으로 놓고 앞뒤 글을 찾는다 {%- endcomment -%}
+{%- assign sibs = '' | split: '' -%}
+{%- for doc in site.writing -%}
+  {%- assign deff = effs[forloop.index0] -%}
+  {%- assign head = deff | slice: 0, dlen -%}
+  {%- assign dparts = deff | split: '/' -%}
+  {%- if head == dir and dparts.size == parts.size -%}
+    {%- assign sibs = sibs | push: doc -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- assign sibs = sibs | sort: 'date' -%}
+{%- assign at = 0 -%}
+{%- for doc in sibs -%}
+  {%- if doc.url == page.url -%}
+    {%- assign at = forloop.index0 -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- assign older = nil -%}
+{%- if at > 0 -%}
+  {%- assign oi = at | minus: 1 -%}
+  {%- assign older = sibs[oi] -%}
+{%- endif -%}
+{%- assign ni = at | plus: 1 -%}
+{%- assign newer = sibs[ni] -%}
+<article class="post">
+  <header class="post-head">
+    {% if parts.size > 2 -%}
+    <nav class="crumbs" aria-label="위치">
+      {%- assign ckey = parts[1] -%}
+      {%- include secname.html key=ckey %}
+      <a href="{{ section_url }}">{{ disp }}</a>
+      {%- assign sid = '' -%}
+      {%- assign cpath = parts[1] | append: '/' -%}
+      {%- for part in parts offset: 2 -%}
+        {%- unless forloop.last -%}
+          {%- assign slug = part | slugify -%}
+          {%- if forloop.first -%}
+            {%- assign sid = slug -%}
+          {%- else -%}
+            {%- assign sid = sid | append: '--' | append: slug -%}
+          {%- endif -%}
+          {%- assign cpath = cpath | append: part | append: '/' -%}
+          {%- include dispname.html path=cpath fallback=part %}
+      <span class="sep">/</span> <a href="{{ section_url }}#{{ sid }}">{{ disp }}</a>
+        {%- endunless -%}
+      {%- endfor %}
+    </nav>
+    {%- endif %}
+    <h1>{{ page.title }}</h1>
+    <time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: '%Y. %-m. %-d.' }}</time>
+  </header>
+
+  <div class="post-body">
+    {{ content }}
+  </div>
+
+  <div class="share" data-title="{{ page.title | escape }}">
+    <button type="button" class="share-copy">링크 복사</button>
+    <button type="button" class="share-open" hidden>공유</button>
+    <span class="share-note" role="status"></span>
+  </div>
+</article>
+
+{% if older or newer %}
+<nav class="post-nav" aria-label="같은 항목의 앞뒤 글">
+  {% if older %}<a class="older" href="{{ older.url | relative_url }}"><span class="dir">이전 글</span><span class="t">{{ older.title }}</span></a>{% endif %}
+  {% if newer %}<a class="newer" href="{{ newer.url | relative_url }}"><span class="dir">다음 글</span><span class="t">{{ newer.title }}</span></a>{% endif %}
+</nav>
+{% endif %}

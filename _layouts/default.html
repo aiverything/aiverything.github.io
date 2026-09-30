@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+{%- assign font = site.font | default: 'gothic' %}
+{%- comment -%} 지금 쪽이 속한 항목: Section 폴더 이름(key)과 소주제 id(sid). 왼쪽 나무의 표시에 쓴다 {%- endcomment -%}
+{%- assign here_key = '' -%}
+{%- assign here_sid = '' -%}
+{%- if page.layout == 'section' -%}
+  {%- assign here_key = page.name | split: '.' | first -%}
+{%- elsif page.collection == 'writing' -%}
+  {%- include effpath.html path=page.relative_path -%}
+  {%- assign hp = eff | split: '/' -%}
+  {%- assign here_key = hp[1] -%}
+  {%- for part in hp offset: 2 -%}
+    {%- unless forloop.last -%}
+      {%- assign hslug = part | slugify -%}
+      {%- if forloop.first -%}
+        {%- assign here_sid = hslug -%}
+      {%- else -%}
+        {%- assign here_sid = here_sid | append: '--' | append: hslug -%}
+      {%- endif -%}
+    {%- endunless -%}
+  {%- endfor -%}
+{%- endif %}
+{%- comment -%} 저장소 주소: GitHub Pages 가 알려 주는 값, 없으면 _config.yml 의 repository (아이디/저장소) {%- endcomment -%}
+{%- assign repo_url = site.github.repository_url -%}
+{%- unless repo_url -%}
+  {%- if site.repository -%}
+    {%- assign repo_url = 'https://github.com/' | append: site.repository -%}
+  {%- endif -%}
+{%- endunless -%}
+{%- assign repo_branch = site.branch | default: site.github.source.branch | default: 'main' %}
+<html lang="{{ site.lang | default: 'ko' }}" class="font-{{ font }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% seo %}
+  <link type="application/atom+xml" rel="alternate" href="{{ '/feed/writing.xml' | relative_url }}" title="{{ site.title }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@600&family=IBM+Plex+Mono&family={% if font == 'myeongjo' %}Noto+Serif+KR:wght@500;700{% else %}Noto+Sans+KR:wght@400;500;700{% endif %}&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+<body data-site="{{ site.title | escape }}" data-write="{{ '/write/' | relative_url }}" data-key="{{ here_key }}" data-sid="{{ here_sid }}"
+      {%- if repo_url %} data-repo="{{ repo_url }}" data-branch="{{ repo_branch }}"{% endif %}
+      {%- if page.collection == 'writing' %} data-path="{{ page.relative_path | escape }}"{% endif %}
+      {%- if page.url == '/' %} class="home"{% endif %}>
+  <aside class="side">
+    <div class="side-inner">
+    <div class="side-head">
+      <a class="site-title" href="{{ '/' | relative_url }}" aria-label="{{ site.title }}">
+        {%- comment -%} 원고지 쓰는 법대로: 영문 소문자와 숫자는 한 칸에 두 자, 그 밖의 글자(띄어쓰기 포함)는 한 칸에 한 자 {%- endcomment -%}
+        {%- assign chars = site.title | split: '' -%}
+        {%- assign halves = 'abcdefghijklmnopqrstuvwxyz0123456789' -%}
+        {%- assign held = '' -%}
+        {%- for c in chars -%}
+          {%- if halves contains c -%}
+            {%- if held == '' -%}
+              {%- assign held = c -%}
+            {%- else -%}
+        <span class="pair" aria-hidden="true">{{ held }}{{ c }}</span>
+              {%- assign held = '' -%}
+            {%- endif -%}
+          {%- else -%}
+            {%- if held != '' -%}
+        <span class="pair" aria-hidden="true">{{ held }}</span>
+              {%- assign held = '' -%}
+            {%- endif -%}
+        <span aria-hidden="true">{{ c }}</span>
+          {%- endif -%}
+        {%- endfor -%}
+        {%- if held != '' -%}
+        <span class="pair" aria-hidden="true">{{ held }}</span>
+        {%- endif -%}
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="side-nav">항목</button>
+    </div>
+    <nav class="side-nav" id="side-nav" aria-label="항목">
+      {% include_cached nav.html %}
+      <ul class="side-links">
+        <li><a href="{{ '/about/' | relative_url }}">소개</a></li>
+        <li><a href="{{ '/feed/writing.xml' | relative_url }}">구독(RSS)</a></li>
+      </ul>
+    </nav>
+    </div>
+  </aside>
+
+  <div class="page">
+    <main>
+      {{ content }}
+    </main>
+    <footer class="site-footer">© {{ site.time | date: '%Y' }} {{ site.author }}</footer>
+  </div>
+
+  <script src="{{ '/assets/js/site.js' | relative_url }}"></script>
+  {%- if page.writer %}
+  <script src="{{ '/assets/js/write.js' | relative_url }}"></script>
+  {%- endif %}
+</body>
+</html>
