@@ -43,6 +43,7 @@ feed:
 
 exclude:
   - README.md
+  - LICENSE
   - new.sh
   - new-item.sh
   - rename-item.sh

@@ -416,6 +416,8 @@ html:not(.js) .share { display: none; }
 }
 .move-bar .note { flex-basis: 100%; color: var(--ink-2); font-size: 0.85rem; }
 
+.site-footer p { margin: 0 0 0.2rem; }
+.site-footer a { text-decoration: underline; text-underline-offset: 0.2em; }
 .site-footer { margin-top: 3.5rem; color: var(--ink-3); font-size: 0.85rem; }
 
 /* ── 좁은 화면: 항목 나무가 위로 올라가고 '항목' 단추로 여닫는다 ── */

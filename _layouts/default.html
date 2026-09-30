@@ -84,7 +84,10 @@
     <main>
       {{ content }}
     </main>
-    <footer class="site-footer">Written by {{ site.author }}</footer>
+    <footer class="site-footer">
+      <p>Written by {{ site.author }}</p>
+      <p>글은 출처를 밝히면 퍼갈 수 있습니다. 상업적 이용과 내용 변경은 안 됩니다. <a href="{{ '/copyright/' | relative_url }}">저작권 안내</a></p>
+    </footer>
   </div>
 
   <script src="{{ '/assets/js/site.js' | relative_url }}"></script>
