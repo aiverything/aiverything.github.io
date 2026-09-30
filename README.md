@@ -69,6 +69,23 @@ _data/itemmoves/            ← (있을 때만) 항목을 다른 항목 아래�
 
 터미널 없이도 됩니다. 아래 '브라우저에서 쓰기' 를 보세요. 브라우저에서는 쓰는 글이 자동으로 임시저장됩니다.
 
+## GitHub 연결 (그림 넣기, 바로 저장)
+
+글 쓰기 화면(`/write/`) 맨 위의 `GitHub 연결` 에서 이 저장소의 토큰을 한 번 넣어 두면:
+
+- 본문 칸에 그림을 **붙여 넣거나(Ctrl+V) 끌어다 놓으면** 그 그림이 저장소의 `assets/img/` 에 올라가고 커서 자리에 들어갑니다. 큰 사진은 긴 변 1600 으로 줄여서 올립니다.
+- 게시·고치기·지우기·옮기기·이름 바꾸기·순서 바꾸기가 GitHub 화면을 거치지 않고 **누르는 즉시 저장**됩니다 (사이트 반영은 1~2분 뒤).
+- `?write=on` 을 하지 않아도 그 브라우저는 글쓴이로 봅니다.
+
+연결하는 법: `토큰 만들기 화면 열기` → Repository access 에서 **Only select repositories** 를 고르고 이 저장소 선택 → Generate token → 나온 값을 칸에 붙여 넣고 `연결하기`. 권한(Contents: Read and write)과 기한(1년)은 미리 채워져 열립니다.
+
+- 토큰은 그 브라우저에만 저장됩니다. 브라우저마다 한 번씩 연결하고, 남과 같이 쓰는 컴퓨터에서는 연결하지 않습니다.
+- 끊으려면 글 쓰기 화면의 `연결 끊기`. 토큰 자체를 없애려면 GitHub 의 Settings → Developer settings → Personal access tokens 에서 지웁니다.
+- 기한이 지나면 "토큰이 만료됐다"는 안내가 나옵니다. 같은 방법으로 다시 연결합니다.
+- 연결하지 않아도 지금까지의 방식(GitHub 화면에서 Commit changes)으로 쓸 수 있습니다. 그림 넣기만 연결이 필요합니다.
+- 바로 저장되는 커밋에는 필명(`_config.yml` 의 `author`)과 GitHub 의 비공개용 메일 주소가 적힙니다.
+- 글 쓰기 화면의 `미리보기` 는 본문이 사이트에 나올 모습을 대략 보여 줍니다. 방금 올린 그림도 보입니다.
+
 ## 브라우저에서 쓰기
 
 사이트 주소 끝에 `?write=on` 을 붙여 한 번 들어가면(예: `https://aiverything.github.io/?write=on`) **그 브라우저에서만** 아래 링크가 보입니다.
@@ -209,5 +226,6 @@ _data/itemmoves/            ← (있을 때만) 항목을 다른 항목 아래�
 | `_includes/opath.html`, `edir.html`, `effpath.html`, `efftable.html`, `otable.html`, `dirtable.html`, `odirof.html` | 옮긴 글과 옮긴 항목의 보이는 자리를 계산 |
 | `_includes/dispname.html`, `itemdesc.html`, `ordpref.html`, `siteintro.html` | 바꾼 항목 이름·설명·순서, 소개 문장을 읽음 |
 | `assets/js/site.js` | 고른 항목 표시·펼침, 고른 항목의 글만 남기기, 좁은 화면의 `항목` 단추, 주인 전용 링크(항목 만들기·이름 바꾸기·지우기, 글 끌어 옮기기·지우기), 링크 복사·공유, 복사할 때 출처 붙이기 |
-| `write.html`, `write-about.html`, `assets/js/write.js` | 글 쓰기 화면과 소개 글 고치기 화면: 임시저장(브라우저 안에만), 게시·저장하기 |
+| `write.html`, `write-about.html`, `assets/js/write.js` | 글 쓰기 화면과 소개 글 고치기 화면: GitHub 연결, 임시저장(브라우저 안에만), 게시·저장하기, 그림 넣기, 미리보기 |
+| `assets/js/marked.min.js` | 미리보기용 마크다운 변환 도구 (남이 만든 공개 도구 marked, MIT 라이선스) |
 | `assets/css/style.css` | 모양 전부 |

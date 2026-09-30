@@ -14,3 +14,5 @@ Copyright (c) 2026 Complex (aiverything.github.io). All rights reserved.
    - 저장소가 공개되어 있는 것은 사이트를 운영하기 위한 것이며, 이용을 허락한다는 뜻이 아닙니다.
 
 위에서 허락한 범위를 넘는 이용은 글쓴이의 허락이 필요합니다.
+
+예외: assets/js/marked.min.js 는 다른 사람이 만든 공개 도구(marked, MIT 라이선스)이며, 그 파일 머리에 적힌 조건을 따릅니다.

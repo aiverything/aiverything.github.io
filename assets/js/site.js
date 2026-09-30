@@ -4,6 +4,8 @@
 //  - 주인 전용 링크: 주소 끝에 ?write=on 을 붙여 한 번 들어온 브라우저에서만
 //    글 쓰기·고치기·지우기, 항목 만들기·이름 바꾸기·지우기가 보인다 (?write=off 로 끈다).
 //    보이기만 가리는 것이고, 저장 권한은 GitHub 가 따로 확인한다.
+//  - GitHub 연결: 글 쓰기 쪽에서 이 저장소의 토큰을 넣어 두면(그 브라우저에만 저장) 주인으로 보고,
+//    GitHub 화면으로 넘기던 일(만들기·바꾸기·옮기기·지우기·게시)을 GitHub API 로 바로 한다.
 //    쓰기를 켠 브라우저에서는 요약 목록의 글을 왼쪽 나무의 항목으로 끌어다 놓아 옮길 수도 있고,
 //    나무의 항목을 위아래로 끌어 순서를 바꿀 수도 있다.
 //  - 글 쪽에서: 글 끝의 '링크 복사'·'공유' 단추, 본문을 복사해 갈 때 끝에 출처 붙이기.
@@ -55,10 +57,152 @@
     }
     realOwner = localStorage.getItem('write') === 'on';
   } catch (e) { /* 저장소를 못 쓰는 브라우저에서는 링크를 보이지 않는다 */ }
-  var owner = forced || realOwner;
   var repo = body.dataset.repo;
   var branch = body.dataset.branch;
+
+  // ── GitHub 연결 (토큰) ──
+  // token: 이 저장소에 쓸 수 있는 토큰. who: 커밋에 적을 이름과 메일(필명과 GitHub 의 비공개용 주소)
+  var TOKEN_KEY = 'gh-token';
+  var WHO_KEY = 'gh-who';
+  var token = null;
+  var who = null;
+  try {
+    token = localStorage.getItem(TOKEN_KEY);
+    who = JSON.parse(localStorage.getItem(WHO_KEY));
+  } catch (e) { /* 저장소를 못 쓰는 브라우저에서는 연결 없이 */ }
+  var owner = forced || realOwner || !!token;
   var canWrite = owner && repo && branch;
+  var direct = !!(token && repo && branch);  // 연결돼 있으면 GitHub 화면을 거치지 않고 바로 저장한다
+  var repoPath = repo ? repo.replace(/^https:\/\/github\.com\//, '') : '';
+
+  function gh(method, path, data, withToken) {
+    return fetch('https://api.github.com' + path, {
+      method: method,
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': 'Bearer ' + (withToken || token),
+        'X-GitHub-Api-Version': '2022-11-28'
+      },
+      body: data ? JSON.stringify(data) : undefined
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var j = null;
+        try { j = t ? JSON.parse(t) : null; } catch (e) { /* 본문이 없거나 JSON 이 아니다 */ }
+        if (!r.ok) {
+          var err = new Error((j && j.message) || String(r.status));
+          err.status = r.status;
+          throw err;
+        }
+        return j;
+      });
+    });
+  }
+  // 실패한 까닭을 사람이 읽을 말로
+  function why(err) {
+    if (err && err.status === 401) return '토큰이 만료됐거나 폐기됐습니다. 글 쓰기 쪽에서 다시 연결해 주세요';
+    if (err && (err.status === 403 || err.status === 404)) return '토큰에 이 저장소의 쓰기 권한이 없습니다. 토큰을 만들 때 이 저장소를 고르고 Contents 를 Read and write 로 했는지 확인해 주세요';
+    if (err && err.status === 422) return '같은 이름의 파일이 이미 있습니다. 이름을 바꿔 다시 해 주세요';
+    if (err && err.status === 409) return '방금 다른 저장과 겹쳤습니다. 잠시 뒤 다시 해 주세요';
+    return 'GitHub 에 닿지 못했습니다. 인터넷 연결을 확인하고 다시 해 주세요';
+  }
+  function bytesToBase64(bytes) {
+    var bin = '';
+    for (var i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+  function textToBase64(text) {
+    return bytesToBase64(new TextEncoder().encode(text));
+  }
+  function contentsPath(path) {
+    return '/repos/' + repoPath + '/contents/' + path.split('/').map(encodeURIComponent).join('/');
+  }
+  function signed(data) {
+    if (who && who.email) data.committer = data.author = { name: who.name, email: who.email };
+    return data;
+  }
+  // 저장은 한 번에 하나씩 (동시에 하면 GitHub 가 충돌로 거절한다)
+  var chain = Promise.resolve();
+  function inTurn(job) {
+    var next = chain.then(job, job);
+    chain = next.catch(function () {});
+    return next;
+  }
+  // 파일을 새로 만든다. replace 가 참이면 이미 있는 파일을 통째로 바꾼다
+  function putFile(path, base64, message, replace) {
+    return inTurn(function () {
+      var sha = replace
+        ? gh('GET', contentsPath(path) + '?ref=' + encodeURIComponent(branch)).then(function (j) { return j.sha; })
+        : Promise.resolve(null);
+      return sha.then(function (found) {
+        var data = signed({ message: message, content: base64, branch: branch });
+        if (found) data.sha = found;
+        return gh('PUT', contentsPath(path), data);
+      });
+    });
+  }
+  function removeFile(path, message) {
+    return inTurn(function () {
+      return gh('GET', contentsPath(path) + '?ref=' + encodeURIComponent(branch)).then(function (j) {
+        return gh('DELETE', contentsPath(path), signed({ message: message, sha: j.sha, branch: branch }));
+      });
+    });
+  }
+  // 토큰을 확인하고 이 브라우저에 넣어 둔다. 이 저장소 주인의 토큰이어야 한다
+  function connect(newToken) {
+    return gh('GET', '/user', null, newToken).then(function (u) {
+      if (u.login.toLowerCase() !== repoPath.split('/')[0].toLowerCase()) {
+        var err = new Error('other-owner');
+        err.other = u.login;
+        throw err;
+      }
+      localStorage.setItem(TOKEN_KEY, newToken);
+      localStorage.setItem(WHO_KEY, JSON.stringify({
+        login: u.login, name: body.dataset.author || u.login, email: u.id + '+' + u.login + '@users.noreply.github.com'
+      }));
+      return u.login;
+    }, function (err) {
+      // 계정 정보를 읽을 수 없는 토큰이면 저장소만 읽히는지 보고 받아들인다 (커밋에는 GitHub 의 기본 이름이 적힌다)
+      if (err.status !== 403 && err.status !== 404) throw err;
+      return gh('GET', '/repos/' + repoPath, null, newToken).then(function () {
+        localStorage.setItem(TOKEN_KEY, newToken);
+        localStorage.removeItem(WHO_KEY);
+        return '';
+      });
+    });
+  }
+  function disconnect() {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(WHO_KEY);
+    } catch (e) { /* 지울 것이 없다 */ }
+  }
+  // 저장소의 파일 경로로 커밋에 적을 말을 만든다
+  function messageFor(path, removing) {
+    var name = path.replace(/\.(md|yml|json)$/, '').split('/').slice(1).join('/');
+    if (path.indexOf('_items/') === 0) return (removing ? '항목 지움: ' : '항목 만듦: ') + name;
+    if (path.indexOf('sections/') === 0) return (removing ? 'Section 지움: ' : 'Section 만듦: ') + name;
+    if (path.indexOf('_data/names/') === 0) return '항목 이름·설명 바꿈';
+    if (path.indexOf('_data/order/') === 0) return '항목 순서 바꿈';
+    if (path.indexOf('_data/moves/') === 0) return '글 옮김';
+    if (path.indexOf('_data/itemmoves/') === 0) return '항목 옮김';
+    if (path.indexOf('_data/site/') === 0) return '소개 문장 바꿈';
+    if (path.indexOf('_data/about/') === 0) return '소개 글 고침';
+    if (path.indexOf('_writing/') === 0) return (removing ? '글 지움: ' : '글 올림: ') + name;
+    return (removing ? '지움: ' : '올림: ') + path;
+  }
+  // GitHub 화면으로 가는 주소가 하려는 일: 새 파일 만들기 또는 파일 지우기. 그 밖의 주소는 null
+  function actionOf(href) {
+    if (!repo || href.indexOf(repo + '/') !== 0) return null;
+    var rest = href.slice(repo.length);
+    var making = '/new/' + enc(branch) + '?';
+    var removing = '/delete/' + enc(branch) + '/';
+    if (rest.indexOf(making) === 0) {
+      var q = new URLSearchParams(rest.slice(making.length));
+      return q.get('filename') ? { put: q.get('filename'), text: q.get('value') || '' } : null;
+    }
+    if (rest.indexOf(removing) === 0) return { remove: decodeURIComponent(rest.slice(removing.length)) };
+    return null;
+  }
 
   function enc(path) {
     return path.split('/').map(encodeURIComponent).join('/');
@@ -77,7 +221,7 @@
   }
   function ownerLink(label) {
     var a = document.createElement('a');
-    a.textContent = label;
+    a.textContent = direct ? label.replace('GitHub 에서 ', '') : label;
     a.target = '_blank';
     a.rel = 'noopener';
     return a;
@@ -212,7 +356,7 @@
     go.setAttribute('aria-disabled', 'true');  // 열기 전에는 눌리지 않는다. 열 때와 칠 때마다 다시 본다
     return { opener: opener, form: form, refresh: refresh, close: function () { show(false); } };
   }
-  var COMMIT_NOTE = 'GitHub 화면에서 Commit changes 를 누르면 1~2분 뒤 반영됩니다';
+  var COMMIT_NOTE = direct ? '누르면 바로 저장되고 1~2분 뒤 사이트에 반영됩니다' : 'GitHub 화면에서 Commit changes 를 누르면 1~2분 뒤 반영됩니다';
 
   // head 아래에 주인 전용 줄을 만들고, 그 줄과 '이 항목에 글 쓰기' 링크를 돌려준다
   var newLink = null;
@@ -558,7 +702,7 @@
         function (clicked) {
           var name = '_data/order/' + stamp() + '.yml';
           var full = newFileUrl(name, text);
-          if (full.length <= URL_LIMIT) return full;
+          if (direct || full.length <= URL_LIMIT) return full;
           if (clicked) copyNow(text);  // 항목이 아주 많으면 주소에 다 못 담아 복사해서 넘긴다
           return newFileUrl(name, '');
         },
@@ -632,15 +776,56 @@
       showDraftCount(draftCount);
     }
   }
+  // 연결하지 않고 쓰기만 켠 브라우저에는 연결하는 곳을 알려 준다
+  if (owner && !direct && !forced && body.dataset.write) {
+    var sideLinksForConnect = nav.querySelector('.side-links');
+    if (sideLinksForConnect) {
+      var connectItem = document.createElement('li');
+      var connectLink = document.createElement('a');
+      connectLink.href = body.dataset.write + '#connect';
+      connectLink.textContent = 'GitHub 연결';
+      connectItem.appendChild(connectLink);
+      sideLinksForConnect.appendChild(connectItem);
+    }
+  }
   // 글 쓰기 쪽(assets/js/write.js)이 쓰는 것들
   window.siteOwner = {
-    owner: owner, canWrite: !!canWrite, repo: repo, branch: branch, links: links, itemLabel: itemLabel,
-    newFileUrl: newFileUrl, editUrl: editUrl, handOff: handOff, copyNow: copyNow, stamp: stamp, showDraftCount: showDraftCount
+    owner: owner, canWrite: !!canWrite, direct: direct, who: who, repo: repo, branch: branch, links: links, itemLabel: itemLabel,
+    newFileUrl: newFileUrl, editUrl: editUrl, handOff: handOff, copyNow: copyNow, stamp: stamp, showDraftCount: showDraftCount,
+    putFile: putFile, textToBase64: textToBase64, bytesToBase64: bytesToBase64, why: why, connect: connect, disconnect: disconnect
   };
 
   if (canWrite) setupItemDrag();
 
-  if (owner && !forced) {
+  // 연결돼 있으면: GitHub 화면으로 가는 링크를 눌렀을 때 그 화면으로 가지 않고 같은 일을 바로 한다
+  if (direct) {
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest ? e.target.closest('a[href]') : null;
+      var act = a ? actionOf(a.href) : null;
+      if (!act) return;
+      e.preventDefault();
+      if (act.remove && !a.closest('.move-bar')) {
+        // 확인하는 화면 없이 바로 지워지지 않게 한 번 묻는다
+        var href = a.href;
+        var heading = document.querySelector('.post-head h1');
+        notice('「' + (heading ? heading.textContent : act.remove) + '」 글을 지웁니다. 지우면 사이트에서 되돌릴 수 없습니다.',
+          'GitHub 에서 지우기', function () { return href; }, COMMIT_NOTE);
+        return;
+      }
+      notice('저장하는 중입니다…');
+      var job = act.remove
+        ? removeFile(act.remove, messageFor(act.remove, true))
+        : putFile(act.put, textToBase64(act.text), messageFor(act.put, false));
+      job.then(function () {
+        forms.forEach(function (f) { f.close(); });
+        notice('저장했습니다. 1~2분 뒤 사이트에 반영되고, 그 뒤에 새로 고침하면 바뀐 모습이 보입니다.');
+      }, function (err) {
+        notice('저장하지 못했습니다. ' + why(err));
+      });
+    });
+  }
+
+  if (realOwner && !token && !forced) {
     var off = document.createElement('li');
     var offLink = document.createElement('a');
     offLink.href = '?write=off';
@@ -709,7 +894,7 @@
     // 짧은 복사, 코드만 복사, 쓰기를 켠 주인의 복사에는 붙이지 않는다.
     document.addEventListener('copy', function (e) {
       var sel = window.getSelection();
-      if (realOwner || !e.clipboardData || !sel.rangeCount) return;
+      if (realOwner || token || !e.clipboardData || !sel.rangeCount) return;
       var range = sel.getRangeAt(0);
       var text = sel.toString();
       if (!range.intersectsNode(article) || text.trim().length < QUOTE_MIN) return;

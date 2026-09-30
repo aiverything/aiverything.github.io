@@ -57,7 +57,7 @@
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
   <script>document.documentElement.classList.add('js');</script>
 </head>
-<body data-site="{{ site.title | escape }}" data-write="{{ '/write/' | relative_url }}" data-key="{{ here_key }}" data-sid="{{ here_sid }}"
+<body data-site="{{ site.title | escape }}" data-author="{{ site.author | escape }}" data-write="{{ '/write/' | relative_url }}" data-key="{{ here_key }}" data-sid="{{ here_sid }}"
       {%- if repo_url %} data-repo="{{ repo_url }}" data-branch="{{ repo_branch }}"{% endif %}
       {%- if page.collection == 'writing' %} data-path="{{ page.relative_path | escape }}"{% endif %}
       {%- if page.editor == 'about' %} data-about="{{ '/write/about/' | relative_url }}"
@@ -92,6 +92,7 @@
 
   <script src="{{ '/assets/js/site.js' | relative_url }}"></script>
   {%- if page.writer %}
+  <script src="{{ '/assets/js/marked.min.js' | relative_url }}"></script>
   <script src="{{ '/assets/js/write.js' | relative_url }}"></script>
   {%- endif %}
 </body>

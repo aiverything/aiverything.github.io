@@ -1,3 +1,128 @@
+// 글 쓰기 쪽들이 함께 쓰는 것: 그림 넣기와 미리보기.
+//  - 그림: 본문 칸에 붙여 넣거나 끌어다 놓은 그림을 (크면 줄여서) 저장소의 assets/img/ 에 올리고,
+//    커서 자리에 그 그림을 가리키는 글을 넣는다. GitHub 에 연결돼 있어야 한다.
+//  - 미리보기: 본문을 사이트에 나올 모습에 가깝게 보여 준다. 방금 올린 그림은 사이트에 반영되기 전이라도 보인다.
+var writeKit = (function () {
+  var api = window.siteOwner;
+  var MAX_SIDE = 1600;          // 이보다 긴 변은 이 길이로 줄인다
+  var KEEP_BYTES = 600 * 1024;  // 이보다 작고 줄일 필요도 없으면 원본 그대로 올린다
+  var fresh = {};               // 이번에 올린 그림: 사이트 안의 주소 → 이 브라우저 안의 임시 주소
+
+  function shrink(file) {
+    var keep = { blob: file, ext: (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg').replace('svg+xml', 'svg') };
+    if (/gif|svg/.test(file.type)) return Promise.resolve(keep);  // 움직이는 그림과 벡터 그림은 그대로
+    return new Promise(function (resolve) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        if (scale === 1 && file.size <= KEEP_BYTES) {
+          URL.revokeObjectURL(url);
+          resolve(keep);
+          return;
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.naturalWidth * scale);
+        canvas.height = Math.round(img.naturalHeight * scale);
+        var pen = canvas.getContext('2d');
+        pen.fillStyle = '#fff';  // 투명한 곳은 흰 바탕으로
+        pen.fillRect(0, 0, canvas.width, canvas.height);
+        pen.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(function (blob) { resolve(blob ? { blob: blob, ext: 'jpg' } : keep); }, 'image/jpeg', 0.85);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(keep); };
+      img.src = url;
+    });
+  }
+  function insertAt(area, text) {
+    var at = area.selectionStart;
+    area.value = area.value.slice(0, at) + text + area.value.slice(area.selectionEnd);
+    area.selectionStart = area.selectionEnd = at + text.length;
+  }
+  function swap(area, from, to) {
+    var at = area.value.indexOf(from);
+    if (at === -1) return;
+    var caret = area.selectionStart;
+    area.value = area.value.slice(0, at) + to + area.value.slice(at + from.length);
+    if (caret > at) area.selectionStart = area.selectionEnd = caret + to.length - from.length;
+  }
+  var serial = 0;
+
+  // area 에 그림 붙여넣기·끌어 넣기를 붙인다. say(글)로 진행 상황을 알린다
+  function attachImages(area, say) {
+    function upload(file) {
+      serial += 1;
+      var mark = '![올리는 중 ' + serial + '…]()';
+      var before = area.value.slice(0, area.selectionStart);
+      var behind = area.value.slice(area.selectionEnd);
+      // 그림은 앞뒤를 빈 줄로 띄운다. 이미 띄워져 있으면 더하지 않는다
+      var lead = !before || /\n\n$/.test(before) ? '' : /\n$/.test(before) ? '\n' : '\n\n';
+      var trail = /^\n\n/.test(behind) ? '' : /^\n/.test(behind) ? '\n' : '\n\n';
+      insertAt(area, lead + mark + trail);
+      say('그림을 올리는 중입니다…');
+      return shrink(file).then(function (img) {
+        var when = api.stamp();
+        var path = 'assets/img/' + when.slice(0, 4) + '/' + when + '-' + serial + '.' + img.ext;
+        return img.blob.arrayBuffer().then(function (buf) {
+          return api.putFile(path, api.bytesToBase64(new Uint8Array(buf)), '그림 올림');
+        }).then(function () {
+          fresh['/' + path] = URL.createObjectURL(img.blob);
+          swap(area, mark, '![](/' + path + ')');
+          say('그림을 올렸습니다. 대괄호 [] 안에 그림 설명을 적을 수 있습니다');
+          area.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      }).catch(function (err) {
+        swap(area, mark, '');
+        say('그림을 올리지 못했습니다. ' + api.why(err));
+        area.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
+    function take(files, e) {
+      var images = Array.prototype.filter.call(files || [], function (f) { return /^image\//.test(f.type); });
+      if (!images.length) return;
+      e.preventDefault();
+      if (!api.direct) {
+        say('그림을 넣으려면 먼저 GitHub 연결이 필요합니다 (글 쓰기 쪽 맨 위의 GitHub 연결)');
+        return;
+      }
+      images.reduce(function (turn, file) { return turn.then(function () { return upload(file); }); }, Promise.resolve());
+    }
+    function carriesFiles(e) {
+      return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') !== -1;
+    }
+    area.addEventListener('paste', function (e) { take(e.clipboardData && e.clipboardData.files, e); });
+    area.addEventListener('dragover', function (e) {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      area.classList.add('is-dropping');
+    });
+    area.addEventListener('dragleave', function () { area.classList.remove('is-dropping'); });
+    area.addEventListener('drop', function (e) {
+      area.classList.remove('is-dropping');
+      if (carriesFiles(e)) take(e.dataTransfer.files, e);
+    });
+  }
+  function imageNote() {
+    return api.direct
+      ? '그림은 본문 칸에 붙여 넣거나(Ctrl+V) 파일을 끌어다 놓으면 커서가 있는 자리에 들어갑니다. 큰 사진은 자동으로 줄여서 올립니다.'
+      : '그림을 넣으려면 GitHub 연결이 필요합니다 (글 쓰기 쪽 맨 위).';
+  }
+  // 본문을 미리보기 칸에 그린다
+  function preview(area, target) {
+    if (!window.marked) {
+      target.textContent = '미리보기를 준비하지 못했습니다.';
+      return;
+    }
+    target.innerHTML = window.marked.parse(area.value, { mangle: false, headerIds: false });
+    Array.prototype.forEach.call(target.querySelectorAll('img'), function (img) {
+      var src = img.getAttribute('src');
+      if (fresh[src]) img.src = fresh[src];
+    });
+  }
+  return { attachImages: attachImages, imageNote: imageNote, preview: preview };
+})();
+
 // 글 쓰기 쪽 (쓰기를 켠 브라우저에서만 동작한다).
 //  - 임시저장: 쓰는 글은 이 브라우저의 저장소(localStorage)에만 둔다. 사이트에도 GitHub 에도 올라가지 않는다.
 //  - 게시(새 글): 다 쓴 글을 GitHub 의 새 파일 화면으로 넘긴다. 짧은 글은 내용을 채워서 열고,
@@ -118,6 +243,7 @@
     delButton.hidden = !saved(d);
     renderList();
     refreshPublish();
+    if (previewBox && !previewBox.hidden) writeKit.preview(text, previewBox);
   }
 
   // 칸의 내용을 지금 글에 담아 저장한다. 아무것도 안 쓴 새 글, 고친 데가 없는 올린 글은 저장하지 않는다.
@@ -198,6 +324,27 @@
     }
     var file = fileOf(cur);
     var note;
+    if (api.direct) {
+      // GitHub 에 연결돼 있으면 화면을 거치지 않고 바로 올린다
+      e.preventDefault();
+      var sent = cur;
+      var verb = sent.edit ? '저장' : '게시';
+      status.textContent = verb + '하는 중입니다…';
+      publish.setAttribute('aria-disabled', 'true');
+      publish.removeAttribute('href');
+      api.putFile(file.name, api.textToBase64(file.text), (sent.edit ? '글 고침: ' : '글 올림: ') + sent.title.trim(), !!sent.edit).then(function () {
+        drafts = drafts.filter(function (d) { return d !== sent; });
+        store();
+        edit(blank(dir.value));
+        status.textContent = verb + '했습니다';
+        after.textContent = '「' + sent.title.trim() + '」 글을 ' + verb + '했습니다. 1~2분 뒤 사이트에 반영됩니다. 임시저장 글은 지웠습니다.';
+        after.hidden = false;
+      }, function (err) {
+        refreshPublish();
+        status.textContent = verb + '하지 못했습니다. ' + api.why(err);
+      });
+      return;
+    }
     if (cur.edit) {
       // 이미 있는 파일은 GitHub 화면을 채워서 열 수 없다: 복사해 두고 편집 화면을 연다
       publish.href = api.editUrl(cur.edit);
@@ -216,12 +363,26 @@
     after.hidden = false;
   });
 
+  // 그림 넣기와 미리보기
+  var previewBox = el('draft-preview');
+  var previewToggle = el('draft-preview-toggle');
+  el('draft-image-note').textContent = writeKit.imageNote();
+  writeKit.attachImages(text, function (say) { status.textContent = say; });
+  previewToggle.addEventListener('click', function () {
+    previewBox.hidden = !previewBox.hidden;
+    previewToggle.setAttribute('aria-expanded', String(!previewBox.hidden));
+    previewToggle.textContent = previewBox.hidden ? '미리보기' : '미리보기 닫기';
+    if (!previewBox.hidden) writeKit.preview(text, previewBox);
+  });
+
   // 쓰는 대로 임시저장
   var timer = null;
   function changed() {
     clearTimeout(timer);
     timer = setTimeout(save, 500);
+    after.hidden = true;
     refreshPublish();
+    if (!previewBox.hidden) writeKit.preview(text, previewBox);
   }
   title.addEventListener('input', function () {
     if (!cur.edit && !cur.slugEdited) slug.value = toSlug(title.value);
@@ -368,6 +529,8 @@
     try { localStorage.setItem(KEY, text.value); } catch (e) { ok = false; }
     status.textContent = ok ? '임시저장했습니다' : '임시저장하지 못했습니다. 내용을 따로 복사해 두세요';
   }
+  document.getElementById('about-image-note').textContent = writeKit.imageNote();
+  writeKit.attachImages(text, function (say) { status.textContent = say; });
   text.addEventListener('input', function () {
     clearTimeout(timer);
     timer = setTimeout(keep, 500);
@@ -384,6 +547,25 @@
       return;
     }
     var body = JSON.stringify({ text: text.value.replace(/\s+$/, '') }, null, 0) + '\n';
+    if (api.direct) {
+      e.preventDefault();
+      status.textContent = '저장하는 중입니다…';
+      save.setAttribute('aria-disabled', 'true');
+      save.removeAttribute('href');
+      api.putFile('_data/about/' + api.stamp() + '.json', api.textToBase64(body), '소개 글 고침').then(function () {
+        clearTimeout(timer);
+        live = text.value;
+        try { localStorage.removeItem(KEY); } catch (err) { /* 지울 것이 없다 */ }
+        status.textContent = '저장했습니다';
+        after.textContent = '소개 글을 저장했습니다. 1~2분 뒤 소개 쪽에 반영됩니다.';
+        after.hidden = false;
+        refresh();
+      }, function (err) {
+        refresh();
+        status.textContent = '저장하지 못했습니다. ' + api.why(err);
+      });
+      return;
+    }
     var how = api.handOff(save, '_data/about/' + api.stamp() + '.json', body);
     after.textContent = (how === 'filled' ? 'GitHub 화면에 내용이 채워져 열립니다. Commit changes 를 누르면 1~2분 뒤 소개 쪽에 반영됩니다.'
       : how === 'copied' ? '내용을 복사했습니다. 열린 GitHub 화면의 빈 본문 칸에 붙여 넣고(Ctrl+V) Commit changes 를 누르면 1~2분 뒤 소개 쪽에 반영됩니다.'
@@ -402,4 +584,60 @@
   });
 
   refresh();
+})();
+
+// GitHub 연결: 이 저장소의 토큰을 이 브라우저에 넣어 두면, 그림을 올릴 수 있고
+// 게시·고치기·지우기·옮기기가 GitHub 화면을 거치지 않고 바로 저장된다 (assets/js/site.js 의 'GitHub 연결').
+(function () {
+  var api = window.siteOwner;
+  var box = document.getElementById('connect');
+  if (!api || !box) return;
+  function el(id) { return document.getElementById(id); }
+  var state = el('connect-state');
+  var steps = el('connect-steps');
+  var off = el('connect-off');
+  var input = el('connect-token');
+  var hint = el('connect-hint');
+
+  var names = api.repo ? api.repo.replace(/^https:\/\/github\.com\//, '').split('/') : null;
+  if (!names) {
+    state.textContent = '이 사이트가 GitHub 에 올라간 뒤에 연결할 수 있습니다.';
+    steps.hidden = true;
+    return;
+  }
+  if (api.direct) {
+    state.textContent = 'GitHub 에 연결되어 있습니다' + (api.who ? ' (' + api.who.login + ')' : '') + '. 글과 그림이 사이트에서 바로 저장됩니다.';
+    steps.hidden = true;
+    off.hidden = false;
+  } else {
+    state.textContent = '글쓴이만 쓰는 기능입니다. 연결하면 그림을 붙여 넣을 수 있고, 게시·고치기·지우기·옮기기가 GitHub 화면을 거치지 않고 바로 저장됩니다.';
+  }
+  // 토큰 만들기 화면을 조건이 채워진 채로 연다: 이 계정, 1년, Contents 쓰기
+  el('connect-make').href = 'https://github.com/settings/personal-access-tokens/new'
+    + '?name=' + encodeURIComponent((names[1] + ' 글쓰기').slice(0, 40))
+    + '&description=' + encodeURIComponent('사이트에서 글과 그림을 올리는 데 씁니다')
+    + '&target_name=' + encodeURIComponent(names[0])
+    + '&expires_in=365&contents=write';
+
+  el('connect-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var value = input.value.trim();
+    if (!value) {
+      hint.textContent = '토큰을 붙여 넣어 주세요';
+      return;
+    }
+    hint.textContent = '확인하는 중입니다…';
+    api.connect(value).then(function () {
+      location.href = location.pathname;
+    }, function (err) {
+      hint.textContent = err.other ? '이 토큰은 다른 계정(' + err.other + ')의 것입니다. 이 사이트 주인의 계정으로 만든 토큰이어야 합니다'
+        : err.status === 401 ? '토큰이 맞지 않습니다. 복사한 값을 다시 확인해 주세요'
+        : err.status ? api.why(err)
+        : '이 브라우저에 저장하지 못했거나 GitHub 에 닿지 못했습니다. 잠시 뒤 다시 해 주세요';
+    });
+  });
+  off.addEventListener('click', function () {
+    api.disconnect();
+    location.href = location.pathname;
+  });
 })();
