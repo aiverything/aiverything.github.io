@@ -25,11 +25,13 @@ sitemap: false
     <label for="draft-title">제목</label>
     <input id="draft-title" type="text" autocomplete="off">
 
-    <label for="draft-dir">항목</label>
-    <select id="draft-dir"></select>
+    <div class="writer-place" id="draft-place">
+      <label for="draft-dir">항목</label>
+      <select id="draft-dir"></select>
 
-    <label for="draft-slug">주소에 쓸 이름 <span class="hint">글 주소의 끝부분이 됩니다. 제목에서 자동으로 만들고, 고쳐도 됩니다.</span></label>
-    <input id="draft-slug" type="text" autocomplete="off">
+      <label for="draft-slug">주소에 쓸 이름 <span class="hint">글 주소의 끝부분이 됩니다. 제목에서 자동으로 만들고, 고쳐도 됩니다.</span></label>
+      <input id="draft-slug" type="text" autocomplete="off">
+    </div>
 
     <label for="draft-summary">요약 <span class="hint">목록에 보일 한두 문장. 비워 두면 글의 첫 문단이 나옵니다.</span></label>
     <input id="draft-summary" type="text" autocomplete="off">

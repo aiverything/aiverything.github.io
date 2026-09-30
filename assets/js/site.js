@@ -634,8 +634,8 @@
   }
   // 글 쓰기 쪽(assets/js/write.js)이 쓰는 것들
   window.siteOwner = {
-    owner: owner, canWrite: !!canWrite, links: links, itemLabel: itemLabel, newFileUrl: newFileUrl, handOff: handOff,
-    stamp: stamp, showDraftCount: showDraftCount
+    owner: owner, canWrite: !!canWrite, repo: repo, branch: branch, links: links, itemLabel: itemLabel,
+    newFileUrl: newFileUrl, editUrl: editUrl, handOff: handOff, copyNow: copyNow, stamp: stamp, showDraftCount: showDraftCount
   };
 
   if (canWrite) setupItemDrag();
@@ -741,8 +741,10 @@
     if (canWrite && path && postHead) {
       var bar = ownerBar(postHead);
       setCurrent(null, path.slice(0, path.lastIndexOf('/') + 1));
-      var edit = ownerLink('이 글 고치기');
-      edit.href = editUrl(path);
+      // 고치기도 사이트의 글 쓰기 쪽에서 한다 (올라가 있는 글을 불러와 칸에 채운다)
+      var edit = document.createElement('a');
+      edit.textContent = '이 글 고치기';
+      edit.href = body.dataset.write + '#edit:' + encodeURIComponent(path);
       bar.insertBefore(edit, bar.firstChild);
       addMoveForm(bar, postHead, path);
       var del = ownerLink('이 글 지우기');

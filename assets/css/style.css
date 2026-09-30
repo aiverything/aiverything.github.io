@@ -352,7 +352,8 @@ html:not(.js) .share { display: none; }
 .draft-list button:hover, .draft-list button[aria-current] { color: var(--accent); }
 .draft-list .meta { flex-shrink: 0; color: var(--ink-3); font-size: 0.85rem; white-space: pre; }
 .writer-note { margin: 0.8rem 0 0; color: var(--ink-2); font-size: 0.9rem; }
-.writer-form { display: flex; flex-direction: column; margin-top: 2.6rem; }
+.writer-form, .writer-place { display: flex; flex-direction: column; }
+.writer-form { margin-top: 2.6rem; }
 .writer-form .list-head { padding-bottom: 0.5rem; border-bottom: 1px solid var(--ink); }
 .writer-form label { margin: 1.1rem 0 0.35rem; font-size: 0.95rem; font-weight: 700; }
 .writer-form label .hint { margin-left: 0.5rem; color: var(--ink-3); font-size: 0.85rem; font-weight: var(--w-body); }
