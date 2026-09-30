@@ -435,6 +435,34 @@ button.go { font: inherit; font-size: 0.9rem; cursor: pointer; }
 }
 .move-bar .note { flex-basis: 100%; color: var(--ink-2); font-size: 0.85rem; }
 
+/* 저장한 내용이 사이트에 반영되기를 기다리는 동안 화면 아래에 뜨는 알림 (글쓴이에게만) */
+.deploy-status {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.8rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.9rem;
+}
+.deploy-status button {
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--paper);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--paper);
+  font: inherit;
+  cursor: pointer;
+}
+
 .site-footer p { margin: 0 0 0.2rem; }
 .site-footer a { text-decoration: underline; text-underline-offset: 0.2em; }
 .site-footer { margin-top: 3.5rem; color: var(--ink-3); font-size: 0.85rem; }

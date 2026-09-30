@@ -55,9 +55,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@600&family=IBM+Plex+Mono&family={% if font == 'myeongjo' %}Noto+Serif+KR:wght@500;700{% else %}Noto+Sans+KR:wght@400;500;700{% endif %}&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
-  <script>document.documentElement.classList.add('js');</script>
+  <script>
+    document.documentElement.classList.add('js');
+    // 글쓴이가 방금 저장해 사이트가 새로 만들어진 뒤 10분 동안은, 브라우저가 기억해 둔 옛 화면이면 한 번 새로 받아 온다
+    (function () {
+      try {
+        if (Date.now() > Number(localStorage.getItem('fresh-until') || 0)) return;
+        var nav = performance.getEntriesByType('navigation')[0];
+        if (nav && nav.type !== 'reload' && nav.transferSize === 0) location.reload();
+      } catch (e) { /* 알 수 없으면 그대로 둔다 */ }
+    })();
+  </script>
 </head>
-<body data-site="{{ site.title | escape }}" data-author="{{ site.author | escape }}" data-write="{{ '/write/' | relative_url }}" data-key="{{ here_key }}" data-sid="{{ here_sid }}"
+<body data-site="{{ site.title | escape }}" data-version="{{ '/version.json' | relative_url }}" data-author="{{ site.author | escape }}" data-write="{{ '/write/' | relative_url }}" data-key="{{ here_key }}" data-sid="{{ here_sid }}"
       {%- if repo_url %} data-repo="{{ repo_url }}" data-branch="{{ repo_branch }}"{% endif %}
       {%- if page.collection == 'writing' %} data-path="{{ page.relative_path | escape }}"{% endif %}
       {%- if page.editor == 'about' %} data-about="{{ '/write/about/' | relative_url }}"

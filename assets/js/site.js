@@ -136,16 +136,92 @@
       return sha.then(function (found) {
         var data = signed({ message: message, content: base64, branch: branch });
         if (found) data.sha = found;
-        return gh('PUT', contentsPath(path), data);
+        return gh('PUT', contentsPath(path), data).then(awaitDeploy);
       });
     });
   }
   function removeFile(path, message) {
     return inTurn(function () {
       return gh('GET', contentsPath(path) + '?ref=' + encodeURIComponent(branch)).then(function (j) {
-        return gh('DELETE', contentsPath(path), signed({ message: message, sha: j.sha, branch: branch }));
+        return gh('DELETE', contentsPath(path), signed({ message: message, sha: j.sha, branch: branch })).then(awaitDeploy);
       });
     });
+  }
+
+  // ── 반영 기다리기 ──
+  // 저장하면 GitHub 가 사이트를 다시 만든다(보통 1분쯤). 그동안 '반영하는 중'이라고 알리고,
+  // 새로 만들어진 사이트가 올라오면(/version.json 의 만든 시각이 저장 시각보다 늦어지면) 화면을 새로 고친다.
+  var DEPLOY_KEY = 'deploy-wait';
+  var FRESH_KEY = 'fresh-until';
+  var STALE_MS = 10 * 60 * 1000;  // GitHub Pages 는 브라우저가 화면을 10분 동안 기억하게 한다
+  var deployBar = null;
+  var deployTimer = null;
+  function readWait() {
+    try { return JSON.parse(localStorage.getItem(DEPLOY_KEY)); } catch (e) { return null; }
+  }
+  // 저장 응답에서 커밋 시각(GitHub 의 시계)을 적어 두고 지켜보기 시작한다
+  function awaitDeploy(result) {
+    var when = result && result.commit && result.commit.committer ? Date.parse(result.commit.committer.date) : NaN;
+    try {
+      localStorage.setItem(DEPLOY_KEY, JSON.stringify({ commit: Math.floor((isNaN(when) ? Date.now() : when) / 1000), saved: Date.now() }));
+    } catch (e) { /* 적어 두지 못하면 알림 없이 */ }
+    watchDeploy();
+    return result;
+  }
+  function showDeploy(text, action) {
+    if (!deployBar) {
+      deployBar = document.createElement('div');
+      deployBar.className = 'deploy-status';
+      deployBar.setAttribute('role', 'status');
+      document.body.appendChild(deployBar);
+    }
+    deployBar.textContent = text;
+    if (action) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = action.label;
+      button.addEventListener('click', action.run);
+      deployBar.appendChild(button);
+    }
+    deployBar.hidden = false;
+  }
+  // 쓰던 것이 날아가지 않을 때만 알아서 새로 고친다
+  function busy() {
+    return !!document.querySelector('#writer:not([hidden]), #about-editor:not([hidden]), .item-form:not([hidden]), .move-bar:not([hidden]) .go');
+  }
+  function watchDeploy() {
+    clearTimeout(deployTimer);
+    var wait = readWait();
+    if (!wait || !body.dataset.version) return;
+    if (Date.now() - wait.saved > STALE_MS) {
+      // 너무 오래 걸리면 그만 기다린다 (GitHub 쪽 빌드가 실패했을 수 있다)
+      try { localStorage.removeItem(DEPLOY_KEY); } catch (e) { /* 없다 */ }
+      showDeploy('반영이 늦어지고 있습니다. 조금 뒤 새로 고쳐 보세요.', { label: '닫기', run: function () { deployBar.hidden = true; } });
+      return;
+    }
+    showDeploy('저장한 내용을 사이트에 반영하는 중입니다. 보통 1분쯤 걸립니다.');
+    fetch(body.dataset.version + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (v) {
+        var now = readWait();
+        if (!now) return;
+        if (!v || !(v.built >= now.commit)) {
+          deployTimer = setTimeout(watchDeploy, 5000);
+          return;
+        }
+        try {
+          localStorage.removeItem(DEPLOY_KEY);
+          localStorage.setItem(FRESH_KEY, String(Date.now() + STALE_MS));
+        } catch (e) { /* 적지 못해도 계속한다 */ }
+        if (busy()) {
+          showDeploy('저장한 내용이 사이트에 반영됐습니다.', { label: '새로 고침', run: function () { location.reload(); } });
+        } else {
+          try { sessionStorage.setItem('deployed', '1'); } catch (e) { /* 없어도 된다 */ }
+          location.reload();
+        }
+      }, function () {
+        deployTimer = setTimeout(watchDeploy, 5000);
+      });
   }
   // 토큰을 확인하고 이 브라우저에 넣어 둔다. 이 저장소 주인의 토큰이어야 한다
   function connect(newToken) {
@@ -356,7 +432,7 @@
     go.setAttribute('aria-disabled', 'true');  // 열기 전에는 눌리지 않는다. 열 때와 칠 때마다 다시 본다
     return { opener: opener, form: form, refresh: refresh, close: function () { show(false); } };
   }
-  var COMMIT_NOTE = direct ? '누르면 바로 저장되고 1~2분 뒤 사이트에 반영됩니다' : 'GitHub 화면에서 Commit changes 를 누르면 1~2분 뒤 반영됩니다';
+  var COMMIT_NOTE = direct ? '누르면 바로 저장되고 1분쯤 뒤 사이트에 반영됩니다' : 'GitHub 화면에서 Commit changes 를 누르면 1~2분 뒤 반영됩니다';
 
   // head 아래에 주인 전용 줄을 만들고, 그 줄과 '이 항목에 글 쓰기' 링크를 돌려준다
   var newLink = null;
@@ -797,6 +873,19 @@
 
   if (canWrite) setupItemDrag();
 
+  if (owner) {
+    var justDeployed = false;
+    try {
+      justDeployed = sessionStorage.getItem('deployed') === '1';
+      sessionStorage.removeItem('deployed');
+    } catch (e) { /* 없어도 된다 */ }
+    if (justDeployed) {
+      showDeploy('저장한 내용이 사이트에 반영됐습니다.');
+      setTimeout(function () { if (deployBar) deployBar.hidden = true; }, 4000);
+    }
+    watchDeploy();
+  }
+
   // 연결돼 있으면: GitHub 화면으로 가는 링크를 눌렀을 때 그 화면으로 가지 않고 같은 일을 바로 한다
   if (direct) {
     document.addEventListener('click', function (e) {
@@ -818,7 +907,7 @@
         : putFile(act.put, textToBase64(act.text), messageFor(act.put, false));
       job.then(function () {
         forms.forEach(function (f) { f.close(); });
-        notice('저장했습니다. 1~2분 뒤 사이트에 반영되고, 그 뒤에 새로 고침하면 바뀐 모습이 보입니다.');
+        notice('저장했습니다. 사이트에 반영되면 화면이 알아서 새로 고쳐집니다.');
       }, function (err) {
         notice('저장하지 못했습니다. ' + why(err));
       });

@@ -337,7 +337,7 @@ var writeKit = (function () {
         store();
         edit(blank(dir.value));
         status.textContent = verb + '했습니다';
-        after.textContent = '「' + sent.title.trim() + '」 글을 ' + verb + '했습니다. 1~2분 뒤 사이트에 반영됩니다. 임시저장 글은 지웠습니다.';
+        after.textContent = '「' + sent.title.trim() + '」 글을 ' + verb + '했습니다. 사이트에 반영되면 화면 아래에 알림이 나옵니다. 임시저장 글은 지웠습니다.';
         after.hidden = false;
       }, function (err) {
         refreshPublish();
@@ -557,7 +557,7 @@ var writeKit = (function () {
         live = text.value;
         try { localStorage.removeItem(KEY); } catch (err) { /* 지울 것이 없다 */ }
         status.textContent = '저장했습니다';
-        after.textContent = '소개 글을 저장했습니다. 1~2분 뒤 소개 쪽에 반영됩니다.';
+        after.textContent = '소개 글을 저장했습니다. 사이트에 반영되면 화면 아래에 알림이 나옵니다.';
         after.hidden = false;
         refresh();
       }, function (err) {

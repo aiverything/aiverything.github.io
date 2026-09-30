@@ -1,0 +1,5 @@
+---
+layout: null
+permalink: /version.json
+---
+{"built": {{ site.time | date: '%s' }}, "sha": "{{ site.github.build_revision }}"}
