@@ -1,0 +1,31 @@
+{%- comment -%}
+  항목(폴더)마다 '보이는 자리>원래 폴더' 짝을 '|' 로 이어 내보낸다 ('정보/하위 주제/>기술/예시 주제/하위 주제/|…').
+  대상은 글이 든 폴더와 그 위 폴더들, 그리고 _items/ 에 이름표가 있는 항목과 그 위 폴더들 (Section 자체는 뺀다).
+  include_cached 로 부른다.
+{%- endcomment -%}
+{%- capture dt_o -%}{%- include_cached otable.html -%}{%- endcapture -%}
+{%- assign dt_paths = dt_o | split: '|' -%}
+{%- assign dt_dirs = '' | split: '' -%}
+{%- for dt_p in dt_paths -%}
+  {%- assign dt_parts = dt_p | split: '/' -%}
+  {%- assign dt_acc = dt_parts[1] | append: '/' -%}
+  {%- for dt_seg in dt_parts offset: 2 -%}
+    {%- unless forloop.last -%}
+      {%- assign dt_acc = dt_acc | append: dt_seg | append: '/' -%}
+      {%- assign dt_dirs = dt_dirs | push: dt_acc -%}
+    {%- endunless -%}
+  {%- endfor -%}
+{%- endfor -%}
+{%- for dt_it in site.items -%}
+  {%- assign dt_parts = dt_it.relative_path | remove_first: '_items/' | split: '.md' | first | split: '/' -%}
+  {%- assign dt_acc = dt_parts[0] | append: '/' -%}
+  {%- for dt_seg in dt_parts offset: 1 -%}
+    {%- assign dt_acc = dt_acc | append: dt_seg | append: '/' -%}
+    {%- assign dt_dirs = dt_dirs | push: dt_acc -%}
+  {%- endfor -%}
+{%- endfor -%}
+{%- assign dt_dirs = dt_dirs | uniq -%}
+{%- for dt_d in dt_dirs -%}
+  {%- include edir.html dir=dt_d -%}
+  {{- edir -}}>{{- dt_d -}}|
+{%- endfor -%}

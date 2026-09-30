@@ -1,21 +1,59 @@
 {%- comment -%}
-  왼쪽 항목 나무: Section → 소주제 폴더. 모든 쪽에서 똑같으므로 한 번만 그려 재사용한다(include_cached).
+  왼쪽 항목 나무: Section → 소주제. 모든 쪽에서 똑같으므로 한 번만 그려 재사용한다(include_cached).
   그래서 page 를 쓰지 않는다 — 지금 보는 항목 표시와 펼침은 assets/js/site.js 가 body 의 data-key·data-sid 로 한다.
   소주제는 글이 든 폴더, 그리고 _items/ 에 이름만 적어 둔 항목(아직 글이 없는 빈 항목)이다.
+  글과 항목은 옮긴 기록에 따라 '보이는 자리'가 폴더와 다를 수 있다 (effpath.html, edir.html).
+
+  아래 값들은 navtree.html 도 읽는다:
+    paths    모든 글의 보이는 자리 ('_writing/정보/하위 주제/x.md')
+    edirs·odirs  항목마다 보이는 자리와 원래 폴더 (같은 번호끼리 짝)
+    shown    나무에 그릴 자리들 (글이나 이름표가 있는 자리와 그 위 자리들)
+    tagdirs  이름표가 있는 항목의 원래 폴더
 {%- endcomment -%}
 {%- assign sections = site.pages | where: 'layout', 'section' | sort: 'order' -%}
-{%- comment -%}
-  marks: 빈 항목들을 글 경로처럼 바꾼 것. _items/기술/새 항목.md → '_writing/기술/새 항목/-' (마지막 조각은 파일 자리).
-  navtree.html 도 이 값을 읽는다.
-{%- endcomment -%}
-{%- comment -%} paths: 모든 글의 놓인 자리 (옮긴 글은 옮긴 자리). navtree.html 도 이 값을 읽는다 {%- endcomment -%}
 {%- capture eff_table -%}{%- include_cached efftable.html -%}{%- endcapture -%}
 {%- assign paths = eff_table | split: '|' -%}
-{%- assign marks = '' | split: '' -%}
-{%- for it in site.items -%}
-  {%- assign mark = it.relative_path | remove_first: '_items/' | split: '.md' | first | prepend: '_writing/' | append: '/-' -%}
-  {%- assign marks = marks | push: mark -%}
+{%- capture dir_table -%}{%- include_cached dirtable.html -%}{%- endcapture -%}
+{%- assign dir_pairs = dir_table | split: '|' -%}
+{%- assign edirs = '' | split: '' -%}
+{%- assign odirs = '' | split: '' -%}
+{%- for pair in dir_pairs -%}
+  {%- assign eo = pair | split: '>' -%}
+  {%- assign edirs = edirs | push: eo[0] -%}
+  {%- assign odirs = odirs | push: eo[1] -%}
 {%- endfor -%}
+{%- assign tagdirs = '' | split: '' -%}
+{%- for it in site.items -%}
+  {%- assign tagdir = it.relative_path | remove_first: '_items/' | split: '.md' | first | append: '/' -%}
+  {%- assign tagdirs = tagdirs | push: tagdir -%}
+{%- endfor -%}
+{%- comment -%} shown: 글이 보이는 자리의 폴더들과 이름표 항목이 보이는 자리, 그리고 그 위 자리들 (Section 자체는 뺀다) {%- endcomment -%}
+{%- assign spots = '' | split: '' -%}
+{%- for p in paths -%}
+  {%- assign spots = spots | push: p -%}
+{%- endfor -%}
+{%- for tagdir in tagdirs -%}
+  {%- assign spot = tagdir -%}
+  {%- for ed in edirs -%}
+    {%- if odirs[forloop.index0] == tagdir -%}
+      {%- assign spot = ed -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- assign spot = '_writing/' | append: spot | append: '-' -%}
+  {%- assign spots = spots | push: spot -%}
+{%- endfor -%}
+{%- assign shown = '' | split: '' -%}
+{%- for spot in spots -%}
+  {%- assign sparts = spot | split: '/' -%}
+  {%- assign acc = sparts[1] | append: '/' -%}
+  {%- for seg in sparts offset: 2 -%}
+    {%- unless forloop.last -%}
+      {%- assign acc = acc | append: seg | append: '/' -%}
+      {%- assign shown = shown | push: acc -%}
+    {%- endunless -%}
+  {%- endfor -%}
+{%- endfor -%}
+{%- assign shown = shown | uniq -%}
 {%- comment -%} Section 순서: sections/이름.md 의 order 순, 끌어서 바꾼 기록이 있으면 그 순서 먼저 {%- endcomment -%}
 {%- include ordpref.html path='' -%}
 {%- assign secs = '' | split: '' -%}
@@ -36,36 +74,32 @@
 <ul class="tree">
 {%- for s in secs -%}
   {%- assign key = s.name | split: '.' | first -%}
-  {%- assign root = '_writing/' | append: key | append: '/' -%}
+  {%- assign sdir = key | append: '/' -%}
+  {%- assign root = '_writing/' | append: sdir -%}
   {%- assign rlen = root | size -%}
   {%- assign count = 0 -%}
-  {%- assign has_sub = false -%}
   {%- for p in paths -%}
     {%- assign head = p | slice: 0, rlen -%}
     {%- if head == root -%}
       {%- assign count = count | plus: 1 -%}
-      {%- assign n = p | split: '/' | size -%}
-      {%- if n > 3 -%}
-        {%- assign has_sub = true -%}
-      {%- endif -%}
     {%- endif -%}
   {%- endfor -%}
-  {%- for mark in marks -%}
-    {%- assign head = mark | slice: 0, rlen -%}
-    {%- assign n = mark | split: '/' | size -%}
-    {%- if head == root and n > 3 -%}
+  {%- assign has_sub = false -%}
+  {%- assign slen = sdir | size -%}
+  {%- for sd in shown -%}
+    {%- assign head = sd | slice: 0, slen -%}
+    {%- if head == sdir -%}
       {%- assign has_sub = true -%}
     {%- endif -%}
   {%- endfor -%}
   {%- assign base = s.url | relative_url -%}
-  {%- assign npath = key | append: '/' -%}
-  {%- include dispname.html path=npath fallback=s.title -%}
-  {%- include itemdesc.html path=npath fallback=s.description %}
+  {%- include dispname.html path=sdir fallback=s.title -%}
+  {%- include itemdesc.html path=sdir fallback=s.description %}
   <li>
   {%- if has_sub %}
     <details>
       <summary><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-order="{{ s.order }}" data-count="{{ count }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></summary>
-      {%- include navtree.html prefix=root base=base key=key %}
+      {%- include navtree.html eprefix=sdir odir=sdir base=base key=key %}
     </details>
   {%- else %}
     <div class="row"><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-order="{{ s.order }}" data-count="{{ count }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></div>

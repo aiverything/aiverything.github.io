@@ -1,0 +1,31 @@
+{%- comment -%}
+  항목(폴더)이 나무에서 보이는 자리를 edir 에 넣는다 (내보내는 글자는 없다).
+    include.dir  항목의 원래 폴더 경로. '_writing/' 을 떼고 끝에 '/' ('기술/예시 주제/하위 주제/')
+  항목을 다른 항목 아래로 옮긴 기록은 _data/itemmoves/ 의 파일들(from·to, 둘 다 원래 폴더 경로)이고
+  나중 것이 이긴다. 옮긴 항목 아래의 것들은 따라간다:
+    from: "기술/예시 주제/", to: "정보/" → '기술/예시 주제/하위 주제/' 는 '정보/예시 주제/하위 주제/' 에 보인다.
+  아래에서 위로 한 단계씩 올라가며, 옮긴 기록이 있는 단계에서는 옮겨 간 위 항목으로 갈아탄다.
+{%- endcomment -%}
+{%- assign ed_cur = include.dir -%}
+{%- assign ed_tail = '' -%}
+{%- if site.data.itemmoves -%}
+  {%- assign ed_all = site.data.itemmoves | sort -%}
+  {%- for ed_step in (1..12) -%}
+    {%- assign ed_parts = ed_cur | split: '/' -%}
+    {%- if ed_parts.size < 2 -%}
+      {%- break -%}
+    {%- endif -%}
+    {%- assign ed_name = ed_parts | last -%}
+    {%- assign ed_cut = ed_name | size | plus: 1 -%}
+    {%- assign ed_keep = ed_cur | size | minus: ed_cut -%}
+    {%- assign ed_up = ed_cur | slice: 0, ed_keep -%}
+    {%- for ed_m in ed_all -%}
+      {%- if ed_m[1].from == ed_cur -%}
+        {%- assign ed_up = ed_m[1].to -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- assign ed_tail = ed_name | append: '/' | append: ed_tail -%}
+    {%- assign ed_cur = ed_up -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- assign edir = ed_cur | append: ed_tail -%}

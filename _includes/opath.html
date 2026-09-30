@@ -1,0 +1,17 @@
+{%- comment -%}
+  글 하나가 놓인 폴더 경로(글을 옮긴 기록만 반영)를 opath 에 넣는다 (내보내는 글자는 없다).
+    include.path  글 파일 경로 ('_writing/기술/예시 주제/x.md')
+  옮긴 기록은 _data/moves/ 의 파일들(post·to)이고, 파일 이름(시각) 순으로 나중 것이 이긴다:
+    post: "_writing/기술/예시 주제/x.md", to: "수필/" → opath = '_writing/수필/x.md'
+  항목 자체를 옮긴 것까지 반영한 자리는 effpath.html 이 만든다.
+{%- endcomment -%}
+{%- assign opath = include.path -%}
+{%- if site.data.moves -%}
+  {%- assign pm_all = site.data.moves | sort -%}
+  {%- for pm in pm_all -%}
+    {%- if pm[1].post == include.path -%}
+      {%- assign pm_name = include.path | split: '/' | last -%}
+      {%- assign opath = '_writing/' | append: pm[1].to | append: pm_name -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}

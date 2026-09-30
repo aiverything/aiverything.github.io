@@ -54,7 +54,8 @@ layout: default
             {%- assign sid = sid | append: '--' | append: slug -%}
           {%- endif -%}
           {%- assign cpath = cpath | append: part | append: '/' -%}
-          {%- include dispname.html path=cpath fallback=part %}
+          {%- include odirof.html edir=cpath -%}
+          {%- include dispname.html path=odir fallback=part %}
       <span class="sep">/</span> <a href="{{ section_url }}#{{ sid }}">{{ disp }}</a>
         {%- endunless -%}
       {%- endfor %}

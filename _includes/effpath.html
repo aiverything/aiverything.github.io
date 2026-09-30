@@ -1,17 +1,15 @@
 {%- comment -%}
   글 하나가 나무에서 놓인 자리를 eff 에 넣는다 (내보내는 글자는 없다).
     include.path  글 파일 경로 ('_writing/기술/예시 주제/x.md')
-  옮긴 적이 없으면 파일 경로 그대로. 옮긴 기록은 _data/moves/ 의 파일들(post·to)이고,
-  파일 이름(시각) 순으로 나중 것이 이긴다. 옮겨도 파일과 글 주소는 그대로이고 놓인 자리만 바뀐다:
-    post: "_writing/기술/예시 주제/x.md", to: "수필/" → eff = '_writing/수필/x.md'
+  글을 옮긴 기록(opath.html)과 항목을 옮긴 기록(edir.html)을 차례로 반영한다.
+  옮겨도 파일과 글 주소는 그대로이고 놓인 자리만 바뀐다.
 {%- endcomment -%}
-{%- assign eff = include.path -%}
-{%- if site.data.moves -%}
-  {%- assign ep_all = site.data.moves | sort -%}
-  {%- for ep in ep_all -%}
-    {%- if ep[1].post == include.path -%}
-      {%- assign ep_name = include.path | split: '/' | last -%}
-      {%- assign eff = '_writing/' | append: ep[1].to | append: ep_name -%}
-    {%- endif -%}
-  {%- endfor -%}
+{%- include opath.html path=include.path -%}
+{%- assign eff = opath -%}
+{%- if site.data.itemmoves -%}
+  {%- assign ef_name = eff | split: '/' | last -%}
+  {%- assign ef_keep = eff | size | minus: ef_name.size -%}
+  {%- assign ef_dir = eff | slice: 0, ef_keep | remove_first: '_writing/' -%}
+  {%- include edir.html dir=ef_dir -%}
+  {%- assign eff = '_writing/' | append: edir | append: ef_name -%}
 {%- endif -%}

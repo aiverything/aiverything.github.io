@@ -1,0 +1,8 @@
+{%- comment -%}
+  모든 글의 opath(글을 옮긴 기록만 반영한 폴더 경로)를 site.writing 순서대로 '|' 로 이어 내보낸다.
+  include_cached 로 부른다.
+{%- endcomment -%}
+{%- for doc in site.writing -%}
+  {%- include opath.html path=doc.relative_path -%}
+  {{- opath -}}|
+{%- endfor -%}

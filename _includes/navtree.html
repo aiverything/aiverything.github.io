@@ -1,39 +1,29 @@
 {%- comment -%}
-  폴더 하나의 하위 소주제를 그린다 (글은 그리지 않는다 — 글은 오른쪽 요약 목록에 나온다).
-    include.prefix  '_writing/기술/' 처럼 '/' 로 끝나는 폴더 경로
-    include.base    Section 쪽 주소
-    include.key     Section 폴더 이름
-    include.id      이 폴더의 id (Section 자체는 비움). 하위 소주제 id 는 여기에 '--이름' 을 붙인다
-  paths(모든 글의 놓인 자리)와 marks(빈 항목을 글 경로처럼 바꾼 것)는 nav.html 이 만들어 둔 것을 읽기만 한다.
+  한 자리 아래의 소주제들을 그린다 (글은 그리지 않는다 — 글은 오른쪽 요약 목록에 나온다).
+    include.eprefix  나무에서 보이는 자리. '_writing/' 을 떼고 끝에 '/' ('기술/')
+    include.odir     그 자리에 보이는 항목의 원래 폴더 (옮긴 적이 없으면 eprefix 와 같다)
+    include.base     Section 쪽 주소
+    include.key      Section 폴더 이름
+    include.id       이 자리의 id (Section 자체는 비움). 하위 소주제 id 는 여기에 '--이름' 을 붙인다
+  paths·edirs·odirs·shown·tagdirs 는 nav.html 이 만들어 둔 것을 읽기만 한다.
   그 밖의 assign 변수는 재귀 호출에서 덮어쓰이므로, 재귀 뒤에는 include.* 와 for 변수만 믿고 다시 계산한다.
 {%- endcomment -%}
-{%- assign depth = include.prefix | split: '/' | size -%}
-{%- assign plen = include.prefix | size -%}
+{%- assign depth = include.eprefix | split: '/' | size -%}
+{%- assign want = depth | plus: 1 -%}
+{%- assign plen = include.eprefix | size -%}
 {%- assign names = '' | split: '' -%}
-{%- for p in paths -%}
-  {%- assign head = p | slice: 0, plen -%}
-  {%- if head == include.prefix -%}
-    {%- assign parts = p | split: '/' -%}
-    {%- assign n = parts.size | minus: 1 -%}
-    {%- if n > depth -%}
-      {%- assign names = names | push: parts[depth] -%}
-    {%- endif -%}
-  {%- endif -%}
-{%- endfor -%}
-{%- for mark in marks -%}
-  {%- assign head = mark | slice: 0, plen -%}
-  {%- if head == include.prefix -%}
-    {%- assign parts = mark | split: '/' -%}
-    {%- assign n = parts.size | minus: 1 -%}
-    {%- if n > depth -%}
+{%- for sd in shown -%}
+  {%- assign head = sd | slice: 0, plen -%}
+  {%- if head == include.eprefix -%}
+    {%- assign parts = sd | split: '/' -%}
+    {%- if parts.size == want -%}
       {%- assign names = names | push: parts[depth] -%}
     {%- endif -%}
   {%- endif -%}
 {%- endfor -%}
 {%- assign names = names | uniq | sort -%}
-{%- comment -%} 순서: 폴더 이름순, 끌어서 바꾼 기록이 있으면 그 순서 먼저 {%- endcomment -%}
-{%- assign opath = include.prefix | remove_first: '_writing/' -%}
-{%- include ordpref.html path=opath -%}
+{%- comment -%} 순서: 폴더 이름순, 끌어서 바꾼 기록(위 항목의 원래 폴더로 적혀 있다)이 있으면 그 순서 먼저 {%- endcomment -%}
+{%- include ordpref.html path=include.odir -%}
 {%- assign ordered = '' | split: '' -%}
 {%- for oname in pref -%}
   {%- if names contains oname -%}
@@ -47,50 +37,50 @@
 {%- endfor %}
 <ul>
 {%- for name in ordered -%}
-  {%- assign sub = include.prefix | append: name | append: '/' -%}
+  {%- assign esub = include.eprefix | append: name | append: '/' -%}
+  {%- comment -%} 이 자리에 보이는 항목의 원래 폴더 {%- endcomment -%}
+  {%- assign osub = esub -%}
+  {%- for ed in edirs -%}
+    {%- if ed == esub -%}
+      {%- assign osub = odirs[forloop.index0] -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- assign sub = '_writing/' | append: esub -%}
   {%- assign sublen = sub | size -%}
-  {%- comment -%} sub 에 바로 든 파일은 경로 조각이 (sub 의 깊이 + 1)개, 그보다 많으면 하위 소주제가 있다 {%- endcomment -%}
-  {%- assign leafn = sub | split: '/' | size | plus: 1 -%}
   {%- assign count = 0 -%}
-  {%- assign has_sub = false -%}
   {%- for p in paths -%}
     {%- assign head = p | slice: 0, sublen -%}
     {%- if head == sub -%}
       {%- assign count = count | plus: 1 -%}
-      {%- assign n = p | split: '/' | size -%}
-      {%- if n > leafn -%}
-        {%- assign has_sub = true -%}
-      {%- endif -%}
     {%- endif -%}
   {%- endfor -%}
-  {%- for mark in marks -%}
-    {%- assign head = mark | slice: 0, sublen -%}
-    {%- assign n = mark | split: '/' | size -%}
-    {%- if head == sub and n > leafn -%}
+  {%- assign has_sub = false -%}
+  {%- assign esublen = esub | size -%}
+  {%- for sd in shown -%}
+    {%- assign head = sd | slice: 0, esublen -%}
+    {%- if head == esub and sd != esub -%}
       {%- assign has_sub = true -%}
     {%- endif -%}
   {%- endfor -%}
+  {%- comment -%} 이름표(_items/…/이름.md)가 있는 항목인가 {%- endcomment -%}
+  {%- assign has_tag = 0 -%}
+  {%- if tagdirs contains osub -%}
+    {%- assign has_tag = 1 -%}
+  {%- endif -%}
   {%- assign sid = name | slugify -%}
   {%- if include.id -%}
     {%- assign sid = include.id | append: '--' | append: sid -%}
   {%- endif -%}
-  {%- comment -%} 이름표(_items/…/이름.md)가 있는 항목인가 {%- endcomment -%}
-  {%- assign tagmark = sub | append: '-' -%}
-  {%- assign has_tag = 0 -%}
-  {%- if marks contains tagmark -%}
-    {%- assign has_tag = 1 -%}
-  {%- endif -%}
-  {%- assign npath = sub | remove_first: '_writing/' -%}
-  {%- include dispname.html path=npath fallback=name -%}
-  {%- include itemdesc.html path=npath %}
+  {%- include dispname.html path=osub fallback=name -%}
+  {%- include itemdesc.html path=osub %}
   <li>
   {%- if has_sub %}
     <details>
-      <summary><a href="{{ include.base }}#{{ sid }}" data-key="{{ include.key }}" data-sid="{{ sid }}" data-dir="{{ sub | escape }}" data-count="{{ count }}" data-tag="{{ has_tag }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></summary>
-      {%- include navtree.html prefix=sub base=include.base key=include.key id=sid %}
+      <summary><a href="{{ include.base }}#{{ sid }}" data-key="{{ include.key }}" data-sid="{{ sid }}" data-dir="_writing/{{ osub | escape }}" data-count="{{ count }}" data-tag="{{ has_tag }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></summary>
+      {%- include navtree.html eprefix=esub odir=osub base=include.base key=include.key id=sid %}
     </details>
   {%- else %}
-    <div class="row"><a href="{{ include.base }}#{{ sid }}" data-key="{{ include.key }}" data-sid="{{ sid }}" data-dir="{{ sub | escape }}" data-count="{{ count }}" data-tag="{{ has_tag }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></div>
+    <div class="row"><a href="{{ include.base }}#{{ sid }}" data-key="{{ include.key }}" data-sid="{{ sid }}" data-dir="_writing/{{ osub | escape }}" data-count="{{ count }}" data-tag="{{ has_tag }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></div>
   {%- endif %}
   </li>
 {%- endfor %}

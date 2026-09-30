@@ -120,14 +120,28 @@
       timeZone: 'Asia/Seoul', year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
     }).format(new Date()).replace(/[-:]/g, '').replace(' ', '-');
   }
-  // 나무에서 dir 바로 아래에 있는 항목들 ('_writing/' 바로 아래는 Section 들)
-  function childrenOf(dir) {
-    return links.filter(function (a) { return a.dataset.dir.replace(/[^/]+\/$/, '') === dir; });
+  // 나무에서의 위아래 관계는 화면의 나무로 본다 (옮긴 항목은 폴더 경로와 보이는 자리가 다르므로)
+  function ownLink(li) {
+    return li.querySelector(':scope > details > summary > a, :scope > .row > a');
   }
-  // dir 바로 아래에 name 이라는 이름(보이는 이름이든 폴더 이름이든)이 이미 있는가. except 는 빼고 본다
-  function nameTaken(dir, name, except) {
-    return childrenOf(dir).some(function (a) {
-      return a !== except && (a.textContent === name || a.dataset.dir === dir + name + '/');
+  // link 바로 아래 항목들의 링크. link 가 없으면 Section 들
+  function kids(link) {
+    var ul = link ? link.closest('li').querySelector(':scope > details > ul') : nav.querySelector('.tree');
+    return ul ? Array.prototype.map.call(ul.children, ownLink) : [];
+  }
+  // 바로 위 항목의 링크. Section 이면 null
+  function parentOf(link) {
+    var up = ancestors(link);
+    return up.length ? up[up.length - 1] : null;
+  }
+  // 항목의 폴더 이름 (보이는 이름을 바꿨어도 그대로인 이름)
+  function itemName(link) {
+    return link.dataset.sid === '' ? link.dataset.key : link.dataset.dir.replace(/\/$/, '').split('/').pop();
+  }
+  // parent 바로 아래에 name 이라는 이름(보이는 이름이든 폴더 이름이든)이 이미 있는가. except 는 빼고 본다
+  function nameTaken(parent, name, except) {
+    return kids(parent).some(function (a) {
+      return a !== except && (a.textContent === name || itemName(a) === name);
     });
   }
 
@@ -226,7 +240,12 @@
     // 새 항목(아직 글이 없는 소주제): _items/ 에 이름표 파일을 만든다
     var add = itemForm('new-item', {
       open: '이 항목 아래에 새 항목 만들기', field: '새 항목 이름', go: 'GitHub 에서 만들기', note: COMMIT_NOTE,
-      problem: function (name) { return nameTaken(newDir, name, null) ? '이미 있는 항목입니다' : ''; },
+      problem: function (name) {
+        if (nameTaken(current, name, null)) return '이미 있는 항목입니다';
+        // 이 폴더에서 다른 곳으로 옮겨 간 항목이 그 이름을 쓰고 있으면 폴더가 겹친다
+        var dir = newDir + name + '/';
+        return links.some(function (a) { return a.dataset.dir === dir; }) ? '다른 곳으로 옮긴 항목이 쓰던 이름이라 쓸 수 없습니다' : '';
+      },
       url: function (name) {
         return newFileUrl('_items/' + newDir.replace(/^_writing\//, '') + name + '.md', '---\n---\n');
       }
@@ -239,8 +258,7 @@
       problem: function (name) {
         if (!current) return '';
         if (name === current.textContent) return '지금 이름과 같습니다';
-        var parent = current.dataset.dir.replace(/[^/]+\/$/, '');
-        return nameTaken(parent, name, current) ? '이미 있는 항목입니다' : '';
+        return nameTaken(parentOf(current), name, current) ? '이미 있는 항목입니다' : '';
       },
       url: function (name) {
         var path = current.dataset.dir.replace(/^_writing\//, '');
@@ -276,7 +294,7 @@
     var sideLinksForForm = nav.querySelector('.side-links');
     var secForm = itemForm('new-section', {
       open: '새 Section 만들기', field: '새 Section 이름', go: 'GitHub 에서 만들기', note: COMMIT_NOTE,
-      problem: function (name) { return nameTaken('_writing/', name, null) ? '이미 있는 항목입니다' : ''; },
+      problem: function (name) { return nameTaken(null, name, null) ? '이미 있는 항목입니다' : ''; },
       url: function (name) {
         var last = 0;
         links.forEach(function (a) { last = Math.max(last, parseInt(a.dataset.order, 10) || 0); });
@@ -432,29 +450,38 @@
     });
   }
 
-  // ── 항목 순서 바꾸기 (주인 전용) ──
-  // 나무의 항목을 같은 단계 안에서 위아래로 끌어 순서를 바꾼다. 놓으면 나무에서 바로 자리가 바뀌고,
-  // 확인 줄의 링크로 _data/order/ 에 기록 파일(위 항목과 아래 항목들의 순서)을 만든다.
-  function itemName(link) {
-    return link.dataset.sid === '' ? link.dataset.key : link.dataset.dir.replace(/\/$/, '').split('/').pop();
-  }
-  function ownLink(li) {
-    return li.querySelector(':scope > details > summary > a, :scope > .row > a');
-  }
+  // ── 항목 끌기 (주인 전용): 순서 바꾸기와 다른 항목 아래로 옮기기 ──
+  // 나무의 항목을 끌어 같은 단계의 항목 위쪽·아래쪽 가장자리에 놓으면 순서가 바뀌고(_data/order/ 에 기록),
+  // 다른 항목의 가운데에 놓으면 그 항목 아래로 들어간다(_data/itemmoves/ 에 기록: 원래 폴더 → 새 위 항목의 원래 폴더).
+  // 어느 쪽이든 폴더와 글 주소는 그대로이고 보이는 자리만 바뀐다.
   function setupItemDrag() {
-    var moving = null;   // 끌고 있는 항목의 <li>
+    var moving = null;       // 끌고 있는 항목의 <li>
+    var movingLink = null;
     var before = new Map();  // 단계(ul)마다 놓기 전의 순서 (취소하면 되돌린다)
+    var hoverRow = null;
+    var opening = null;
     function clearMarks() {
-      Array.prototype.forEach.call(nav.querySelectorAll('.drop-before, .drop-after'), function (el) {
-        el.classList.remove('drop-before', 'drop-after');
+      Array.prototype.forEach.call(nav.querySelectorAll('.drop-before, .drop-after, .drop-target'), function (el) {
+        el.classList.remove('drop-before', 'drop-after', 'drop-target');
       });
     }
-    // 끌고 있는 항목과 같은 단계에 있는, 마우스 아래의 항목
-    function siblingAt(target) {
-      for (var el = target; el && el !== nav; el = el.parentElement) {
-        if (el.tagName === 'LI' && el.parentElement === moving.parentElement) return el;
-      }
-      return null;
+    // 마우스 아래의 항목과, 거기에 놓으면 무엇이 되는지: 'before'·'after'(순서 바꾸기), 'into'(그 항목 아래로 옮기기)
+    function spotAt(e) {
+      var row = e.target.closest ? e.target.closest('summary, .row') : null;
+      if (!row || !nav.contains(row)) return null;
+      var li = row.tagName === 'SUMMARY' ? row.parentElement.parentElement : row.parentElement;
+      if (li === moving || moving.contains(li)) return null;      // 자기 자신이나 자기 아래로는 못 놓는다
+      var link = ownLink(li);
+      var sibling = li.parentElement === moving.parentElement;
+      // Section 은 다른 항목 아래로 못 가고, 이미 그 항목 바로 아래면 옮길 것이 없다
+      var canInto = movingLink.dataset.sid !== '' && parentOf(movingLink) !== link;
+      var box = row.getBoundingClientRect();
+      var y = (e.clientY - box.top) / box.height;
+      var how = null;
+      if (sibling && canInto) how = y < 0.3 ? 'before' : y > 0.7 ? 'after' : 'into';
+      else if (sibling) how = y < 0.5 ? 'before' : 'after';
+      else if (canInto) how = 'into';
+      return how ? { li: li, link: link, row: row, how: how } : null;
     }
     links.forEach(function (a) {
       var row = a.parentElement;  // <summary> 또는 .row
@@ -462,6 +489,7 @@
       row.draggable = true;
       row.addEventListener('dragstart', function (e) {
         moving = row.closest('li');
+        movingLink = a;
         moving.classList.add('is-dragging');
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', a.textContent);
@@ -469,40 +497,66 @@
       row.addEventListener('dragend', function () {
         if (moving) moving.classList.remove('is-dragging');
         moving = null;
+        movingLink = null;
+        hoverRow = null;
+        clearTimeout(opening);
         clearMarks();
       });
     });
     nav.addEventListener('dragover', function (e) {
       if (!moving) return;
-      var over = siblingAt(e.target);
+      var spot = spotAt(e);
       clearMarks();
-      if (!over || over === moving) return;
+      var row = spot ? spot.row : null;
+      if (row !== hoverRow) {
+        // 접힌 항목 위에 잠시 머물면 펼쳐서 그 아래 항목에 놓을 수 있게 한다
+        hoverRow = row;
+        clearTimeout(opening);
+        var details = row && row.tagName === 'SUMMARY' ? row.parentElement : null;
+        if (details && !details.open) opening = setTimeout(function () { details.open = true; }, 700);
+      }
+      if (!spot) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      var box = over.getBoundingClientRect();
-      over.classList.add(e.clientY < box.top + box.height / 2 ? 'drop-before' : 'drop-after');
+      if (spot.how === 'into') spot.row.classList.add('drop-target');
+      else spot.li.classList.add(spot.how === 'before' ? 'drop-before' : 'drop-after');
     });
     nav.addEventListener('drop', function (e) {
       if (!moving) return;
-      var over = siblingAt(e.target);
-      if (!over || over === moving) return;
-      e.preventDefault();
-      var list = moving.parentElement;
-      var after = over.classList.contains('drop-after');
+      var spot = spotAt(e);
       clearMarks();
+      clearTimeout(opening);
+      if (!spot) return;
+      e.preventDefault();
+      var link = movingLink;
+
+      if (spot.how === 'into') {
+        var target = spot.link;
+        var label = itemLabel(link);
+        if (nameTaken(target, itemName(link), null) || nameTaken(target, link.textContent, null)) {
+          notice(itemLabel(target) + ' 아래에 같은 이름의 항목이 이미 있어 ' + label + ' 항목을 옮길 수 없습니다. 이름을 먼저 바꿔 주세요.');
+          return;
+        }
+        var moveText = 'from: ' + yamlText(link.dataset.dir.replace(/^_writing\//, '')) + '\nto: ' + yamlText(target.dataset.dir.replace(/^_writing\//, '')) + '\n';
+        notice(label + ' 항목을 ' + itemLabel(target) + ' 아래로 옮깁니다. 그 아래 항목과 글도 함께 옮겨집니다.',
+          'GitHub 에서 옮기기',
+          function () { return newFileUrl('_data/itemmoves/' + stamp() + '.yml', moveText); },
+          MOVE_NOTE);
+        return;
+      }
+
+      var list = moving.parentElement;
       if (!before.has(list)) before.set(list, Array.prototype.slice.call(list.children));
-      list.insertBefore(moving, after ? over.nextSibling : over);
+      list.insertBefore(moving, spot.how === 'after' ? spot.li.nextSibling : spot.li);
 
       var items = Array.prototype.slice.call(list.children).map(ownLink);
-      var first = items[0];
-      var parent = first.dataset.sid === '' ? '' : first.dataset.dir.replace(/^_writing\//, '').replace(/[^/]+\/$/, '');
-      var upper = ancestors(first).map(function (x) { return x.textContent; }).join(' / ');
+      var upper = parentOf(items[0]);
+      var parent = upper ? upper.dataset.dir.replace(/^_writing\//, '') : '';
       var text = 'parent: ' + yamlText(parent) + '\nitems:\n' + items.map(function (x) { return '  - ' + yamlText(itemName(x)) + '\n'; }).join('');
-      var name = '';
-      notice((upper ? upper + ' 아래 항목' : 'Section') + '의 순서를 이렇게 바꿉니다: ' + items.map(function (x) { return x.textContent; }).join(', '),
+      notice((upper ? itemLabel(upper) + ' 아래 항목' : 'Section') + '의 순서를 이렇게 바꿉니다: ' + items.map(function (x) { return x.textContent; }).join(', '),
         'GitHub 에서 바꾸기',
         function (clicked) {
-          name = '_data/order/' + stamp() + '.yml';
+          var name = '_data/order/' + stamp() + '.yml';
           var full = newFileUrl(name, text);
           if (full.length <= URL_LIMIT) return full;
           if (clicked) copyNow(text);  // 항목이 아주 많으면 주소에 다 못 담아 복사해서 넘긴다
@@ -752,7 +806,7 @@
     addItemForms(ownerBar(panelHead), panelHead);
     var dragHint = document.createElement('p');
     dragHint.className = 'owner-hint';
-    dragHint.textContent = '글을 왼쪽의 항목으로 끌어다 놓으면 그 항목으로 옮길 수 있고, 왼쪽의 항목은 위아래로 끌어 순서를 바꿀 수 있습니다.';
+    dragHint.textContent = '글을 왼쪽의 항목으로 끌어다 놓으면 그 항목으로 옮길 수 있습니다. 왼쪽의 항목도 끌 수 있습니다: 다른 항목의 위아래 가장자리에 놓으면 순서가 바뀌고, 가운데에 놓으면 그 항목 아래로 들어갑니다.';
     panelHead.appendChild(dragHint);
     setupDrag();
   }

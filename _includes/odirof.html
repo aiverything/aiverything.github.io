@@ -1,0 +1,16 @@
+{%- comment -%}
+  나무에서 보이는 자리의 항목이 원래 어느 폴더인지 odir 에 넣는다 (내보내는 글자는 없다).
+    include.edir  보이는 자리 ('정보/하위 주제/')
+  항목을 옮긴 적이 없으면 보이는 자리가 곧 원래 폴더다. 이름·설명·순서 기록은 원래 폴더 경로로 적혀 있다.
+{%- endcomment -%}
+{%- assign odir = include.edir -%}
+{%- if site.data.itemmoves -%}
+  {%- capture od_t -%}{%- include_cached dirtable.html -%}{%- endcapture -%}
+  {%- assign od_pairs = od_t | split: '|' -%}
+  {%- for od_p in od_pairs -%}
+    {%- assign od_eo = od_p | split: '>' -%}
+    {%- if od_eo[0] == include.edir -%}
+      {%- assign odir = od_eo[1] -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}

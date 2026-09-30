@@ -18,7 +18,8 @@
   {%- unless forloop.last -%}
     {%- assign eslug = part | slugify -%}
     {%- assign epath = epath | append: part | append: '/' -%}
-    {%- include dispname.html path=epath fallback=part -%}
+    {%- include odirof.html edir=epath -%}
+    {%- include dispname.html path=odir fallback=part -%}
     {%- if forloop.first -%}
       {%- assign esid = eslug -%}
     {%- else -%}
