@@ -5,6 +5,7 @@
 # 글을 바로 쓸 거라면 이 스크립트 없이 ./new.sh 만 써도 폴더가 함께 만들어진다.
 set -euo pipefail
 cd "$(dirname "$0")"
+. ./_sections.sh
 
 if [ $# -lt 1 ]; then
   echo "사용법: ./new-item.sh Section이름 [\"설명\"]   또는   ./new-item.sh Section/소주제/…" >&2
@@ -17,7 +18,7 @@ section="${path%%/*}"
 if [ "$section" = "$path" ]; then
   # 새 Section: 메뉴 순서는 지금 있는 것들의 맨 뒤
   file="sections/$section.md"
-  if [ -e "$file" ]; then
+  if [ -e "$file" ] || has_section "$section"; then
     echo "이미 있는 Section 입니다: $section" >&2
     exit 1
   fi
@@ -32,8 +33,8 @@ order: $(( ${last:-0} + 1 ))
 ---
 EOF
 else
-  if [ ! -f "sections/$section.md" ]; then
-    echo "맨 앞은 있는 Section 이어야 합니다: $(ls sections | sed 's/\.md$//' | paste -sd' ')" >&2
+  if ! has_section "$section"; then
+    echo "맨 앞은 있는 Section 이어야 합니다: $(section_keys | paste -sd' ')" >&2
     echo "새 Section 은 ./new-item.sh $section 으로 먼저 만드세요." >&2
     exit 1
   fi

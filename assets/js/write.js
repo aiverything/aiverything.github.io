@@ -176,7 +176,34 @@ var writeKit = (function () {
   //   head  그 파일 머리말의 줄들 (제목·요약 말고는 그대로 되돌려 쓴다)
   //   base  불러왔을 때의 제목·요약·본문 (고친 것이 있는지 볼 때 쓴다)
   function blank(d) {
-    return { id: String(Date.now()), title: '', dir: d || (dir.options[0] ? dir.options[0].value : ''), slug: '', slugEdited: false, summary: '', body: '', updated: 0 };
+    return { id: String(Date.now()), title: '', dir: d || (dir.options[0] ? dir.options[0].value : ''), slug: newCode(), coded: true, slugEdited: false, summary: '', body: '', updated: 0 };
+  }
+  // 글 주소의 끝부분(= 파일 이름)으로 쓸 짧은 코드. 글 주소는 /p/코드/ 이고 항목과는 상관없다
+  function newCode() {
+    var letters = 'abcdefghijkmnpqrstuvwxyz23456789';  // 헷갈리는 글자(l, o, 0, 1)는 뺀다
+    var nums = window.crypto.getRandomValues(new Uint8Array(6));
+    var code = '';
+    for (var i = 0; i < nums.length; i++) code += letters[nums[i] % letters.length];
+    return code;
+  }
+  // 그 이름의 글 주소가 이미 있는지 사이트에 물어 둔다 (다른 항목에 같은 이름의 글이 있으면 주소가 겹친다)
+  var postRoot = document.body.dataset.write.replace(/write\/$/, '') + 'p/';
+  var taken = {};
+  function checkSlug(name) {
+    if (!name || taken[name] !== undefined) return;
+    taken[name] = null;
+    fetch(postRoot + encodeURIComponent(name) + '/', { method: 'HEAD', cache: 'no-store' }).then(function (r) {
+      taken[name] = r.ok;
+      if (cur && !cur.edit && slug.value.trim() === name) {
+        if (r.ok && !cur.slugEdited) {
+          // 자동으로 만든 코드가 겹쳤으면 다른 코드로 바꾼다
+          slug.value = newCode();
+          changed();
+        } else {
+          refreshPublish();
+        }
+      }
+    }, function () { delete taken[name]; });
   }
   function isEmpty(d) { return !d.title.trim() && !d.summary.trim() && !d.body.trim(); }
   function unchanged(d) {
@@ -197,10 +224,6 @@ var writeKit = (function () {
   function dirLabel(d) {
     for (var i = 0; i < dir.options.length; i++) if (dir.options[i].value === d) return dir.options[i].textContent;
     return '';
-  }
-  // 제목에서 주소에 쓸 이름을 만든다: 띄어쓰기는 '-', 주소에 쓸 수 없는 글자는 뺀다
-  function toSlug(s) {
-    return s.trim().replace(/[\/\\#?%"<>|*:.]/g, '').replace(/\s+/g, '-').replace(/^[_-]+|-+$/g, '');
   }
   function quoted(s) { return '"' + s.trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"'; }
   // 머리말 값의 따옴표를 벗긴다 ("…" 안의 \" 와 \\ 도 되돌린다)
@@ -238,7 +261,13 @@ var writeKit = (function () {
     if (!d.edit) {
       dir.value = d.dir;
       if (dir.value !== d.dir && dir.options.length) dir.selectedIndex = 0;  // 없어진 항목이면 첫 항목으로
+      if (!d.coded && !d.slugEdited) {
+        // 예전 방식(제목으로 만든 이름)의 임시저장 글은 짧은 코드로 바꾼다. 손수 적은 이름은 그대로 둔다
+        d.slug = newCode();
+        d.coded = true;
+      }
       slug.value = d.slug;
+      checkSlug(d.slug.trim());
     }
     summary.value = d.summary;
     text.value = d.body;
@@ -317,6 +346,7 @@ var writeKit = (function () {
     var s = slug.value.trim();
     if (!s) return '주소에 쓸 이름을 적어 주세요';
     if (/[\/\\#?%"<>|*:]/.test(s) || /^[._]/.test(s)) return '주소에 쓸 이름에는 / \\ # ? % " < > | * : 를 쓸 수 없고, . 이나 _ 로 시작할 수 없습니다';
+    if (taken[s]) return '이미 다른 글이 쓰는 주소입니다. 주소에 쓸 이름을 바꿔 주세요';
     return '';
   }
   var blocked = '';
@@ -405,11 +435,12 @@ var writeKit = (function () {
     refreshPublish();
     if (!previewBox.hidden) writeKit.preview(text, previewBox);
   }
-  title.addEventListener('input', function () {
-    if (!cur.edit && !cur.slugEdited) slug.value = toSlug(title.value);
+  title.addEventListener('input', changed);
+  slug.addEventListener('input', function () {
+    cur.slugEdited = true;
+    checkSlug(slug.value.trim());
     changed();
   });
-  slug.addEventListener('input', function () { cur.slugEdited = slug.value.trim() !== ''; changed(); });
   [summary, text].forEach(function (f) { f.addEventListener('input', changed); });
   dir.addEventListener('change', changed);
   window.addEventListener('pagehide', function () { clearTimeout(timer); save(); });

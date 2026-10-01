@@ -5,7 +5,8 @@ layout: default
   Section 쪽: 이 Section 의 글 전부를 요약 목록으로 그려 둔다.
   왼쪽에서 소주제를 고르면 assets/js/site.js 가 주소의 #소주제id 에 맞는 글만 남기고 제목을 바꾼다.
 {%- endcomment -%}
-{%- assign key = page.name | split: '.' | first -%}
+{%- assign pbase = page.name | remove: '.md' -%}
+{%- assign key = page.folder | default: pbase -%}
 {%- assign root = '_writing/' | append: key | append: '/' -%}
 {%- assign rlen = root | size -%}
 {%- capture eff_table -%}{%- include_cached efftable.html -%}{%- endcapture -%}

@@ -67,11 +67,15 @@
   {%- if tagdirs contains osub -%}
     {%- assign has_tag = 1 -%}
   {%- endif -%}
-  {%- assign sid = name | slugify -%}
+  {%- include dispname.html path=osub fallback=name -%}
+  {%- comment -%} id 는 보이는 이름으로 만든다 (itemsid.html 과 같은 방식): 이름을 바꾸면 주소의 # 뒤도 바뀐다 {%- endcomment -%}
+  {%- assign sid = disp | slugify -%}
+  {%- if sid == '' -%}
+    {%- assign sid = name | slugify -%}
+  {%- endif -%}
   {%- if include.id -%}
     {%- assign sid = include.id | append: '--' | append: sid -%}
   {%- endif -%}
-  {%- include dispname.html path=osub fallback=name -%}
   {%- include itemdesc.html path=osub %}
   <li>
   {%- if has_sub %}

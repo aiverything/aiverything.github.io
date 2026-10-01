@@ -54,26 +54,30 @@
   {%- endfor -%}
 {%- endfor -%}
 {%- assign shown = shown | uniq -%}
-{%- comment -%} Section 순서: sections/이름.md 의 order 순, 끌어서 바꾼 기록이 있으면 그 순서 먼저 {%- endcomment -%}
+{%- comment -%} Section 순서: sections/ 파일의 order 순, 끌어서 바꾼 기록이 있으면 그 순서 먼저 {%- endcomment -%}
 {%- include ordpref.html path='' -%}
 {%- assign secs = '' | split: '' -%}
 {%- for okey in pref -%}
-  {%- assign ofile = okey | append: '.md' -%}
   {%- for s in sections -%}
-    {%- if s.name == ofile -%}
+    {%- assign sbase = s.name | remove: '.md' -%}
+    {%- assign skey = s.folder | default: sbase -%}
+    {%- if skey == okey -%}
       {%- assign secs = secs | push: s -%}
     {%- endif -%}
   {%- endfor -%}
 {%- endfor -%}
 {%- for s in sections -%}
-  {%- assign okey = s.name | split: '.' | first -%}
+  {%- assign sbase = s.name | remove: '.md' -%}
+  {%- assign okey = s.folder | default: sbase -%}
   {%- unless pref contains okey -%}
     {%- assign secs = secs | push: s -%}
   {%- endunless -%}
 {%- endfor -%}
 <ul class="tree">
 {%- for s in secs -%}
-  {%- assign key = s.name | split: '.' | first -%}
+  {%- comment -%} key: 글이 든 폴더 이름. 파일 이름(= 주소)은 Section 이름을 바꾸면 달라질 수 있다 {%- endcomment -%}
+  {%- assign sbase = s.name | remove: '.md' -%}
+  {%- assign key = s.folder | default: sbase -%}
   {%- assign sdir = key | append: '/' -%}
   {%- assign root = '_writing/' | append: sdir -%}
   {%- assign rlen = root | size -%}
@@ -98,11 +102,11 @@
   <li>
   {%- if has_sub %}
     <details>
-      <summary><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-order="{{ s.order }}" data-count="{{ count }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></summary>
+      <summary><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-file="{{ s.path | escape }}" data-order="{{ s.order }}" data-count="{{ count }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></summary>
       {%- include navtree.html eprefix=sdir odir=sdir base=base key=key %}
     </details>
   {%- else %}
-    <div class="row"><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-order="{{ s.order }}" data-count="{{ count }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></div>
+    <div class="row"><a href="{{ base }}" data-key="{{ key }}" data-sid="" data-dir="{{ root | escape }}" data-file="{{ s.path | escape }}" data-order="{{ s.order }}" data-count="{{ count }}" data-desc="{{ idesc | escape }}">{{ disp }}</a><span class="count">{{ count }}</span></div>
   {%- endif %}
   </li>
 {%- endfor %}

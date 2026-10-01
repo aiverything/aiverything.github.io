@@ -6,6 +6,7 @@
 # 원래 이름으로 돌리려면 그 항목의 기록 파일들을 지운다.
 set -euo pipefail
 cd "$(dirname "$0")"
+. ./_sections.sh
 
 if [ $# -lt 2 ]; then
   echo "사용법: ./rename-item.sh Section[/소주제/…] \"바꿀 이름\"" >&2
@@ -16,8 +17,8 @@ path="${1%/}"
 name="$2"
 section="${path%%/*}"
 
-if [ ! -f "sections/$section.md" ]; then
-  echo "맨 앞은 있는 Section 이어야 합니다: $(ls sections | sed 's/\.md$//' | paste -sd' ')" >&2
+if ! has_section "$section"; then
+  echo "맨 앞은 있는 Section 이어야 합니다: $(section_keys | paste -sd' ')" >&2
   exit 1
 fi
 if [ "$section" != "$path" ] && [ ! -d "_writing/$path" ] && [ ! -e "_items/$path.md" ] && [ ! -d "_items/$path" ]; then

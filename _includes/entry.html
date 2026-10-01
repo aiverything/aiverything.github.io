@@ -16,10 +16,9 @@
 {%- endif -%}
 {%- for part in eparts offset: 2 -%}
   {%- unless forloop.last -%}
-    {%- assign eslug = part | slugify -%}
     {%- assign epath = epath | append: part | append: '/' -%}
-    {%- include odirof.html edir=epath -%}
-    {%- include dispname.html path=odir fallback=part -%}
+    {%- include itemsid.html edir=epath name=part -%}
+    {%- assign eslug = slug -%}
     {%- if forloop.first -%}
       {%- assign esid = eslug -%}
     {%- else -%}

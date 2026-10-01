@@ -1,12 +1,20 @@
 {%- comment -%}
-  Section 의 보이는 이름을 disp 에 넣는다: 이름 바꾼 기록 > sections/이름.md 의 title > 폴더 이름.
-    include.key  Section 폴더 이름
+  Section 의 보이는 이름을 disp 에, 그 쪽의 주소를 sec_url 에 넣는다.
+  이름: 이름 바꾼 기록 > sections/ 파일의 title > 폴더 이름. 주소: sections/ 파일의 이름.
+    include.key  Section 폴더 이름 (sections/ 파일의 folder, 없으면 파일 이름)
 {%- endcomment -%}
 {%- assign sn_title = include.key -%}
-{%- assign sn_file = include.key | append: '.md' -%}
+{%- assign sec_url = '/' | append: include.key | append: '/' -%}
 {%- for sn in site.pages -%}
-  {%- if sn.layout == 'section' and sn.name == sn_file and sn.title -%}
-    {%- assign sn_title = sn.title -%}
+  {%- if sn.layout == 'section' -%}
+    {%- assign sn_base = sn.name | remove: '.md' -%}
+    {%- assign sn_key = sn.folder | default: sn_base -%}
+    {%- if sn_key == include.key -%}
+      {%- assign sec_url = sn.url -%}
+      {%- if sn.title -%}
+        {%- assign sn_title = sn.title -%}
+      {%- endif -%}
+    {%- endif -%}
   {%- endif -%}
 {%- endfor -%}
 {%- assign sn_path = include.key | append: '/' -%}

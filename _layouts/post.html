@@ -10,7 +10,6 @@ layout: default
 {%- assign fname = parts | last -%}
 {%- assign dlen = here | size | minus: fname.size -%}
 {%- assign dir = here | slice: 0, dlen -%}
-{%- assign section_url = '/' | append: parts[1] | append: '/' | relative_url -%}
 
 {%- comment -%} 같은 폴더의 글을 날짜순으로 놓고 앞뒤 글을 찾는다 {%- endcomment -%}
 {%- assign sibs = '' | split: '' -%}
@@ -41,21 +40,20 @@ layout: default
     {% if parts.size > 2 -%}
     <nav class="crumbs" aria-label="위치">
       {%- assign ckey = parts[1] -%}
-      {%- include secname.html key=ckey %}
+      {%- include secname.html key=ckey -%}
+      {%- assign section_url = sec_url | relative_url %}
       <a href="{{ section_url }}">{{ disp }}</a>
       {%- assign sid = '' -%}
       {%- assign cpath = parts[1] | append: '/' -%}
       {%- for part in parts offset: 2 -%}
         {%- unless forloop.last -%}
-          {%- assign slug = part | slugify -%}
+          {%- assign cpath = cpath | append: part | append: '/' -%}
+          {%- include itemsid.html edir=cpath name=part -%}
           {%- if forloop.first -%}
             {%- assign sid = slug -%}
           {%- else -%}
             {%- assign sid = sid | append: '--' | append: slug -%}
-          {%- endif -%}
-          {%- assign cpath = cpath | append: part | append: '/' -%}
-          {%- include odirof.html edir=cpath -%}
-          {%- include dispname.html path=odir fallback=part %}
+          {%- endif %}
       <span class="sep">/</span> <a href="{{ section_url }}#{{ sid }}">{{ disp }}</a>
         {%- endunless -%}
       {%- endfor %}
@@ -77,7 +75,7 @@ layout: default
 </article>
 
 {%- if site.comments_project %}
-<section class="comments" id="comments" data-page="{{ page.relative_path | remove_first: '_writing/' | escape }}" aria-labelledby="comments-title">
+<section class="comments" id="comments" data-page="{{ page.relative_path | split: '/' | last | remove: '.md' | escape }}" aria-labelledby="comments-title">
   <h2 class="list-head" id="comments-title">댓글 <span class="count" id="comment-count"></span></h2>
   <ol class="comment-list" id="comment-list"></ol>
   <p class="empty" id="comment-empty" hidden></p>

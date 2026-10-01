@@ -140,6 +140,87 @@
       });
     });
   }
+  // 여러 파일을 한 커밋으로 만들고 지운다 (다 되거나 다 안 되거나).
+  //   changes: [{ path, text }] 는 만들거나 바꾸고, [{ path, remove: true }] 는 지운다
+  function commitFiles(changes, message) {
+    var git = '/repos/' + repoPath + '/git';
+    return inTurn(function () {
+      return gh('GET', git + '/ref/heads/' + encodeURIComponent(branch)).then(function (ref) {
+        var head = ref.object.sha;
+        return gh('GET', git + '/commits/' + head).then(function (c) {
+          return gh('POST', git + '/trees', {
+            base_tree: c.tree.sha,
+            tree: changes.map(function (f) {
+              return f.remove ? { path: f.path, mode: '100644', type: 'blob', sha: null }
+                : { path: f.path, mode: '100644', type: 'blob', content: f.text };
+            })
+          });
+        }).then(function (tree) {
+          var data = { message: message, tree: tree.sha, parents: [head] };
+          if (who && who.email) data.author = data.committer = { name: who.name, email: who.email, date: new Date().toISOString() };
+          return gh('POST', git + '/commits', data);
+        }).then(function (made) {
+          return gh('PATCH', git + '/refs/heads/' + encodeURIComponent(branch), { sha: made.sha }).then(function () {
+            return awaitDeploy({ commit: made });
+          });
+        });
+      });
+    });
+  }
+  // 올라가 있는 파일의 내용을 글자로 읽는다
+  function readFile(path) {
+    return gh('GET', contentsPath(path) + '?ref=' + encodeURIComponent(branch)).then(function (j) {
+      var bin = atob(j.content.replace(/\s/g, ''));
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new TextDecoder('utf-8').decode(bytes);
+    });
+  }
+  // Section 이름 바꾸기: 이름 기록과 함께 sections/ 의 파일 이름도 바꾼다 (그 파일 이름이 Section 쪽의 주소다).
+  // 글이 든 폴더는 그대로 두고 파일의 folder 에 적어 둔다.
+  function renameSection(link, name, record) {
+    var from = link.dataset.file;
+    var to = 'sections/' + name + '.md';
+    return readFile(from).then(function (text) {
+      var m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+      var lines = m ? m[1].split(/\r?\n/) : [];
+      var rest = m ? text.slice(m[0].length) : '\n';
+      lines = lines.filter(function (line) { return !/^(title|folder):/.test(line); });
+      lines.unshift('title: ' + yamlText(name), 'folder: ' + yamlText(link.dataset.key));
+      var changes = [{ path: record.put, text: record.text }, { path: to, text: '---\n' + lines.join('\n') + '\n---' + rest }];
+      if (from !== to) changes.push({ path: from, remove: true });
+      return commitFiles(changes, 'Section 이름 바꿈: ' + name);
+    });
+  }
+  // Jekyll 의 slugify 와 같은 방식 (왼쪽 나무의 소주제 id 를 만드는 방식)
+  function slugOf(name) {
+    return name.replace(/[^\p{M}\p{L}\p{Nd}]+/gu, '-').replace(/^-|-$/g, '').toLowerCase();
+  }
+  // 이름을 바꾸면 항목의 주소도 바뀐다. 반영된 뒤 새 주소로 가도록 적어 둔다
+  var GOTO_KEY = 'deploy-goto';
+  function rememberGoto(link, name, moved) {
+    var here = new URL(link.href, location.href);
+    var to;
+    if (link.dataset.sid === '') {
+      if (!moved) return;  // 연결 없이 바꾸면 Section 의 주소는 그대로다
+      to = here.pathname.replace(/[^\/]+\/$/, encodeURIComponent(name) + '/');
+    } else {
+      var parts = link.dataset.sid.split('--');
+      parts[parts.length - 1] = slugOf(name) || parts[parts.length - 1];
+      to = here.pathname + '#' + encodeURIComponent(parts.join('--'));
+    }
+    try { localStorage.setItem(GOTO_KEY, JSON.stringify({ from: here.pathname + here.hash, to: to })); } catch (e) { /* 적지 못하면 그냥 새로 고친다 */ }
+  }
+  // 반영된 화면을 연다: 이름을 바꾼 항목을 보고 있었으면 그 새 주소로, 아니면 지금 화면을 다시
+  function reloadFresh() {
+    var go = null;
+    try {
+      go = JSON.parse(localStorage.getItem(GOTO_KEY));
+      localStorage.removeItem(GOTO_KEY);
+    } catch (e) { /* 없다 */ }
+    if (go && go.to && go.from === location.pathname + location.hash) history.replaceState(null, '', go.to);
+    location.reload();
+  }
   function removeFile(path, message) {
     return inTurn(function () {
       return gh('GET', contentsPath(path) + '?ref=' + encodeURIComponent(branch)).then(function (j) {
@@ -214,10 +295,10 @@
           localStorage.setItem(FRESH_KEY, String(Date.now() + STALE_MS));
         } catch (e) { /* 적지 못해도 계속한다 */ }
         if (busy()) {
-          showDeploy('저장한 내용이 사이트에 반영됐습니다.', { label: '새로 고침', run: function () { location.reload(); } });
+          showDeploy('저장한 내용이 사이트에 반영됐습니다.', { label: '새로 고침', run: reloadFresh });
         } else {
           try { sessionStorage.setItem('deployed', '1'); } catch (e) { /* 없어도 된다 */ }
-          location.reload();
+          reloadFresh();
         }
       }, function () {
         deployTimer = setTimeout(watchDeploy, 5000);
@@ -358,18 +439,28 @@
   function itemName(link) {
     return link.dataset.sid === '' ? link.dataset.key : link.dataset.dir.replace(/\/$/, '').split('/').pop();
   }
-  // parent 바로 아래에 name 이라는 이름(보이는 이름이든 폴더 이름이든)이 이미 있는가. except 는 빼고 본다
+  // Section 쪽의 주소로 쓰이는 파일 이름 (sections/이름.md 의 이름). 소주제는 ''
+  function fileName(link) {
+    return link.dataset.file ? link.dataset.file.replace(/^sections\//, '').replace(/\.md$/, '') : '';
+  }
+  // parent 바로 아래에 name 이라는 이름(보이는 이름이든 폴더 이름이든 주소든)이 이미 있는가. except 는 빼고 본다
   function nameTaken(parent, name, except) {
     return kids(parent).some(function (a) {
-      return a !== except && (a.textContent === name || itemName(a) === name);
+      return a !== except && (a.textContent === name || itemName(a) === name || fileName(a) === name);
     });
+  }
+  // Section 이름은 그대로 주소가 된다: 사이트가 이미 쓰는 주소와 겹치면 안 된다
+  var RESERVED = ['p', 'about', 'write', 'write-about', 'assets', 'copyright', 'feed', '404'];
+  function reserved(name) {
+    return RESERVED.indexOf(name.toLowerCase()) !== -1 ? '사이트가 이미 쓰는 주소라 쓸 수 없는 이름입니다' : '';
   }
 
   // 이름을 적으면 GitHub 의 새 파일 화면으로 가는 작은 양식. 여닫는 단추와 양식을 돌려준다.
   //   o.problem(name)  쓸 수 없는 이름이면 그 까닭, 괜찮으면 ''
   //   o.url(name)      그 이름으로 만들 파일의 GitHub 주소
   //   o.initial()      (있으면) 양식을 열 때 칸에 채울 이름
-  //   o.note           이름이 괜찮을 때 보여 줄 안내
+  //   o.note           이름이 괜찮을 때 보여 줄 안내 (글자 또는 글자를 돌려주는 함수)
+  //   o.mark(go, name) (있으면) 저장 링크에 덧붙일 것을 적는다
   //   o.free           참이면 이름이 아니라 자유로운 글 (글자 제한 없음)
   //   o.empty          참이면 비워서 보낼 수 있다 (설명 지우기)
   function itemForm(id, o) {
@@ -406,7 +497,8 @@
       if ((name || o.empty) && !problem) {
         go.href = o.url(name);
         go.removeAttribute('aria-disabled');
-        hint.textContent = o.note;
+        hint.textContent = typeof o.note === 'function' ? o.note() : o.note;
+        if (o.mark) o.mark(go, name);
       } else {
         go.removeAttribute('href');
         go.setAttribute('aria-disabled', 'true');
@@ -470,20 +562,27 @@
         return newFileUrl('_items/' + newDir.replace(/^_writing\//, '') + name + '.md', '---\n---\n');
       }
     });
-    // 이름 바꾸기: 보이는 이름만 바꾼다. _data/names/ 에 기록 파일을 하나 더 만든다 (폴더와 주소는 그대로)
+    // 이름 바꾸기: _data/names/ 에 기록 파일을 하나 더 만든다. 글이 든 폴더와 글 주소는 그대로이고,
+    // 항목의 주소는 새 이름을 따라 바뀐다 (소주제는 # 뒤의 id, Section 은 sections/ 의 파일 이름 — 연결돼 있을 때)
     var rename = itemForm('rename-item', {
       open: '이 항목 이름 바꾸기', field: '바꿀 이름', go: 'GitHub 에서 바꾸기',
-      note: '보이는 이름만 바뀌고 글 주소는 그대로입니다. ' + COMMIT_NOTE,
+      note: function () {
+        var follows = direct || (current && current.dataset.sid !== '');
+        return (follows ? '이 항목의 주소도 새 이름으로 바뀝니다. 글 주소는 그대로입니다. '
+          : 'GitHub 에 연결하지 않으면 보이는 이름만 바뀌고 Section 의 주소는 그대로입니다. ') + COMMIT_NOTE;
+      },
       initial: function () { return current ? current.textContent : ''; },
       problem: function (name) {
         if (!current) return '';
         if (name === current.textContent) return '지금 이름과 같습니다';
+        if (current.dataset.sid === '' && reserved(name)) return reserved(name);
         return nameTaken(parentOf(current), name, current) ? '이미 있는 항목입니다' : '';
       },
       url: function (name) {
         var path = current.dataset.dir.replace(/^_writing\//, '');
         return newFileUrl('_data/names/' + stamp() + '.yml', 'path: "' + path + '"\nname: "' + name + '"\n');
-      }
+      },
+      mark: function (go, name) { go.renaming = { link: current, name: name }; }
     });
     forms.push(add, rename);
     var remove = document.createElement('button');
@@ -514,7 +613,7 @@
     var sideLinksForForm = nav.querySelector('.side-links');
     var secForm = itemForm('new-section', {
       open: '새 Section 만들기', field: '새 Section 이름', go: 'GitHub 에서 만들기', note: COMMIT_NOTE,
-      problem: function (name) { return nameTaken(null, name, null) ? '이미 있는 항목입니다' : ''; },
+      problem: function (name) { return reserved(name) || (nameTaken(null, name, null) ? '이미 있는 항목입니다' : ''); },
       url: function (name) {
         var last = 0;
         links.forEach(function (a) { last = Math.max(last, parseInt(a.dataset.order, 10) || 0); });
@@ -598,7 +697,7 @@
   }
 
   // 항목 지우기: 글도 아래 항목도 없는 빈 항목만 지운다 (글이 함께 사라지는 일이 없게).
-  // Section 은 sections/이름.md 를, 소주제는 _items/ 의 이름표를 지운다.
+  // Section 은 sections/ 의 그 파일을, 소주제는 _items/ 의 이름표를 지운다.
   function askDelete(link) {
     var label = itemLabel(link);
     var count = Number(link.dataset.count) || 0;
@@ -612,7 +711,7 @@
       notice(label + ' 항목은 따로 지울 것이 없습니다. 들어 있던 글이 없어지면 저절로 사라집니다.');
     } else {
       var file = isSection
-        ? 'sections/' + link.dataset.key + '.md'
+        ? link.dataset.file
         : '_items/' + link.dataset.dir.replace(/^_writing\//, '').replace(/\/$/, '') + '.md';
       notice(label + ' 항목을 지웁니다.', 'GitHub 에서 지우기',
         function () { return deleteUrl(file); },
@@ -907,10 +1006,14 @@
         return;
       }
       notice('저장하는 중입니다…');
+      var renaming = a.renaming && act.put && act.put.indexOf('_data/names/') === 0 ? a.renaming : null;
       var job = act.remove
         ? removeFile(act.remove, messageFor(act.remove, true))
-        : putFile(act.put, textToBase64(act.text), messageFor(act.put, false));
+        : renaming && renaming.link.dataset.sid === ''
+          ? renameSection(renaming.link, renaming.name, act)
+          : putFile(act.put, textToBase64(act.text), messageFor(act.put, false));
       job.then(function () {
+        if (renaming) rememberGoto(renaming.link, renaming.name, true);
         forms.forEach(function (f) { f.close(); });
         notice('저장했습니다. 사이트에 반영되면 화면이 알아서 새로 고쳐집니다.');
       }, function (err) {

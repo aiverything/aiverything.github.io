@@ -6,6 +6,7 @@
 # 원래 자리로 돌리려면 그 글의 기록 파일들을 지운다.
 set -euo pipefail
 cd "$(dirname "$0")"
+. ./_sections.sh
 
 if [ $# -lt 2 ]; then
   echo "사용법: ./move-post.sh Section/…/글파일.md 옮길-항목(Section[/소주제/…])" >&2
@@ -20,8 +21,8 @@ if [ ! -f "$post" ]; then
   echo "없는 글 파일입니다: $post" >&2
   exit 1
 fi
-if [ ! -f "sections/$section.md" ]; then
-  echo "옮길 항목의 맨 앞은 있는 Section 이어야 합니다: $(ls sections | sed 's/\.md$//' | paste -sd' ')" >&2
+if ! has_section "$section"; then
+  echo "옮길 항목의 맨 앞은 있는 Section 이어야 합니다: $(section_keys | paste -sd' ')" >&2
   exit 1
 fi
 
