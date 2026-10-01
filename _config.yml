@@ -8,7 +8,7 @@ font: gothic   # 글꼴: gothic(고딕) 또는 myeongjo(명조)
 branch: main    # 글을 올리는 브랜치 ('이 글 고치기' 링크가 이 브랜치의 파일을 연다)
 
 # 댓글: Firebase 프로젝트 ID. 비워 두면 글 아래에 댓글 칸이 나오지 않습니다 (README 의 '댓글')
-comments_project:
+comments_project: aiverything-comments
 
 lang: ko
 timezone: Asia/Seoul
