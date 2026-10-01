@@ -435,6 +435,7 @@ html:not(.js) .share { display: none; }
 }
 .writer-form textarea { min-height: 22rem; line-height: 1.8; resize: vertical; }
 .writer-status { margin: 0.9rem 0 0; color: var(--ink-2); font-size: 0.9rem; }
+.writer-why { margin-top: 0.3rem; }
 .writer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.8rem; }
 .writer-actions button {
   padding: 0.35rem 0.9rem;

@@ -848,7 +848,12 @@
       writeItem.appendChild(writeLink);
       sideLinksForWrite.appendChild(writeItem);
       var draftCount = 0;
-      try { draftCount = (JSON.parse(localStorage.getItem('drafts')) || []).length; } catch (e) { /* 못 읽으면 0 */ }
+      try {
+        // 올린 글을 고치다가 도로 원래대로 돌려놓은 것은 세지 않는다 (글 쓰기 쪽을 열면 치워진다)
+        draftCount = (JSON.parse(localStorage.getItem('drafts')) || []).filter(function (d) {
+          return !(d.edit && d.base && d.title.trim() === d.base.title && d.summary.trim() === d.base.summary && d.body.replace(/\s+$/, '') === d.base.body);
+        }).length;
+      } catch (e) { /* 못 읽으면 0 */ }
       showDraftCount(draftCount);
     }
   }

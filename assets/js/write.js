@@ -162,6 +162,7 @@ var writeKit = (function () {
   }
   var drafts = load();
   var cur = null;
+  var why = el('draft-why');
 
   // 항목 고르기: 왼쪽 나무의 항목 전부
   api.links.forEach(function (a) {
@@ -182,6 +183,14 @@ var writeKit = (function () {
     return d.edit && d.title.trim() === d.base.title && d.summary.trim() === d.base.summary && d.body.replace(/\s+$/, '') === d.base.body;
   }
   function saved(d) { return drafts.indexOf(d) !== -1; }
+  // 올린 글을 고치다가 도로 원래대로 돌려놓은 임시저장 글은 남겨 둘 것이 없다 (저장할 것도 없어 단추가 눌리지 않는다)
+  (function () {
+    var kept = drafts.filter(function (d) { return !unchanged(d); });
+    if (kept.length !== drafts.length) {
+      drafts = kept;
+      store();
+    }
+  })();
   function clock(ms) {
     return new Date(ms).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
@@ -256,6 +265,15 @@ var writeKit = (function () {
     }
     cur.summary = summary.value;
     cur.body = text.value;
+    if (saved(cur) && unchanged(cur)) {
+      // 고친 것을 도로 원래대로 돌려놓았다: 임시저장 글을 치운다
+      drafts = drafts.filter(function (d) { return d !== cur; });
+      store();
+      delButton.hidden = true;
+      status.textContent = '올라가 있는 글과 같아져 임시저장 글을 지웠습니다';
+      renderList();
+      return;
+    }
     if (!saved(cur)) {
       if (isEmpty(cur) || unchanged(cur)) return;
       drafts.push(cur);
@@ -312,6 +330,9 @@ var writeKit = (function () {
       publish.removeAttribute('aria-disabled');
     }
     publish.title = blocked;
+    // 단추가 눌리지 않는 까닭을 단추 위에 늘 보여 준다
+    why.textContent = blocked ? (cur.edit ? '저장하려면: ' : '게시하려면: ') + blocked : '';
+    why.hidden = !blocked;
   }
 
   publish.addEventListener('click', function (e) {
