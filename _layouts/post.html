@@ -77,13 +77,21 @@ layout: default
 </article>
 
 {%- if site.comments_project %}
-<section class="comments" id="comments" data-project="{{ site.comments_project | escape }}" data-page="{{ page.relative_path | remove_first: '_writing/' | escape }}" aria-labelledby="comments-title">
+<section class="comments" id="comments" data-page="{{ page.relative_path | remove_first: '_writing/' | escape }}" aria-labelledby="comments-title">
   <h2 class="list-head" id="comments-title">댓글 <span class="count" id="comment-count"></span></h2>
   <ol class="comment-list" id="comment-list"></ol>
   <p class="empty" id="comment-empty" hidden></p>
   <form class="comment-form" id="comment-form">
-    <label for="comment-name">이름</label>
-    <input id="comment-name" type="text" maxlength="30" autocomplete="nickname" placeholder="비워 두면 익명">
+    <div class="comment-who">
+      <div>
+        <label for="comment-name">이름</label>
+        <input id="comment-name" type="text" maxlength="30" autocomplete="nickname" placeholder="비워 두면 익명">
+      </div>
+      <div id="comment-pass-box" hidden>
+        <label for="comment-pass">비밀번호 <span class="opt">(선택)</span></label>
+        <input id="comment-pass" type="password" maxlength="50" autocomplete="new-password" placeholder="고치거나 지울 때 씁니다">
+      </div>
+    </div>
     <label for="comment-text">댓글</label>
     <textarea id="comment-text" rows="4" maxlength="2000"></textarea>
     <input class="comment-url" id="comment-url" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -91,7 +99,7 @@ layout: default
       <button type="submit" class="go">댓글 남기기</button>
       <span class="hint" id="comment-hint" role="status"></span>
     </div>
-    <p class="comment-note">이름과 댓글은 누구나 볼 수 있습니다.</p>
+    <p class="comment-note" id="comment-note">이름과 댓글은 누구나 볼 수 있습니다.</p>
   </form>
 </section>
 {%- endif %}

@@ -641,3 +641,54 @@ var writeKit = (function () {
     location.href = location.pathname;
   });
 })();
+
+// 댓글 관리 로그인: Firebase 에 만들어 둔 글쓴이 계정으로 로그인하면 이 브라우저에서 모든 댓글을 지울 수 있다
+// (assets/js/comments.js 의 siteComments). GitHub 연결과는 별개의 로그인이다.
+(function () {
+  var api = window.siteOwner;
+  var comments = window.siteComments;
+  var box = document.getElementById('comment-admin');
+  if (!api || !api.owner || !comments || !comments.ready || !box) return;
+  function el(id) { return document.getElementById(id); }
+  var state = el('comment-admin-state');
+  var form = el('comment-admin-form');
+  var hint = el('comment-admin-hint');
+  var off = el('comment-admin-off');
+  box.hidden = false;
+
+  function draw() {
+    var on = comments.isOwner();
+    state.textContent = on
+      ? '댓글 관리자로 로그인되어 있습니다. 글 화면에서 모든 댓글에 "지우기"가 보이고, 이 브라우저에서 쓰는 댓글에는 "글쓴이" 표시가 붙습니다.'
+      : 'Firebase 에 만들어 둔 글쓴이 계정으로 로그인하면 모든 댓글을 지울 수 있습니다.';
+    form.hidden = on;
+    off.hidden = !on;
+  }
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = el('comment-admin-email').value.trim();
+    var pass = el('comment-admin-pass').value;
+    if (!email || !pass) {
+      hint.textContent = '이메일과 비밀번호를 적어 주세요';
+      return;
+    }
+    hint.textContent = '확인하는 중입니다…';
+    comments.signIn(email, pass).then(function () {
+      if (!comments.isOwner()) {
+        comments.signOut();
+        hint.textContent = '이 계정은 설정에 적힌 글쓴이 계정이 아닙니다';
+        return;
+      }
+      el('comment-admin-pass').value = '';
+      hint.textContent = '';
+      draw();
+    }, function (err) {
+      hint.textContent = err.status === 400 ? '이메일이나 비밀번호가 맞지 않습니다' : '로그인하지 못했습니다. 잠시 뒤 다시 해 주세요';
+    });
+  });
+  off.addEventListener('click', function () {
+    comments.signOut();
+    draw();
+  });
+  draw();
+})();

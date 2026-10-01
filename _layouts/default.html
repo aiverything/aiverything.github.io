@@ -67,7 +67,8 @@
     })();
   </script>
 </head>
-<body data-site="{{ site.title | escape }}" data-version="{{ '/version.json' | relative_url }}" data-author="{{ site.author | escape }}" data-write="{{ '/write/' | relative_url }}" data-key="{{ here_key }}" data-sid="{{ here_sid }}"
+<body data-site="{{ site.title | escape }}"
+      {%- if site.comments_project %} data-comments-project="{{ site.comments_project | escape }}" data-comments-key="{{ site.comments_api_key | escape }}" data-comments-owner="{{ site.comments_owner_uid | escape }}"{% endif %} data-version="{{ '/version.json' | relative_url }}" data-author="{{ site.author | escape }}" data-write="{{ '/write/' | relative_url }}" data-key="{{ here_key }}" data-sid="{{ here_sid }}"
       {%- if repo_url %} data-repo="{{ repo_url }}" data-branch="{{ repo_branch }}"{% endif %}
       {%- if page.collection == 'writing' %} data-path="{{ page.relative_path | escape }}"{% endif %}
       {%- if page.editor == 'about' %} data-about="{{ '/write/about/' | relative_url }}"
@@ -101,8 +102,10 @@
   </div>
 
   <script src="{{ '/assets/js/site.js' | relative_url }}"></script>
-  {%- if site.comments_project and page.collection == 'writing' %}
+  {%- if site.comments_project %}
+    {%- if page.collection == 'writing' or page.writer %}
   <script src="{{ '/assets/js/comments.js' | relative_url }}"></script>
+    {%- endif %}
   {%- endif %}
   {%- if page.writer %}
   <script src="{{ '/assets/js/marked.min.js' | relative_url }}"></script>

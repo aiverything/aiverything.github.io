@@ -31,6 +31,20 @@ sitemap: false
   <button type="button" id="connect-off" hidden>연결 끊기</button>
 </section>
 
+<section class="connect" id="comment-admin" aria-labelledby="comment-admin-title" hidden>
+  <h2 class="list-head" id="comment-admin-title">댓글 관리</h2>
+  <p class="writer-note" id="comment-admin-state"></p>
+  <form class="item-form" id="comment-admin-form">
+    <label for="comment-admin-email">이메일</label>
+    <input id="comment-admin-email" type="email" autocomplete="username">
+    <label for="comment-admin-pass">비밀번호</label>
+    <input id="comment-admin-pass" type="password" autocomplete="current-password">
+    <button type="submit" class="go">로그인</button>
+    <span class="hint" id="comment-admin-hint" role="status"></span>
+  </form>
+  <button type="button" id="comment-admin-off" hidden>로그아웃</button>
+</section>
+
 <div id="writer" hidden>
   <section aria-labelledby="drafts-title">
     <h2 class="list-head" id="drafts-title">임시저장 글</h2>

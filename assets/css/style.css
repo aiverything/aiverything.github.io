@@ -315,6 +315,40 @@ html:not(.js) .share { display: none; }
 .comment-head .who { min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
 .comment-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .comments .empty { margin: 0.9rem 0 0; }
+.comment-head .badge {
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.comment-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.9rem; margin: 0.4rem 0 0; font-size: 0.85rem; }
+.comment-tools button { padding: 0; border: 0; background: none; color: var(--ink-3); font: inherit; text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }
+.comment-tools button:hover { color: var(--accent); }
+.comment-tools .hint { color: var(--ink-2); }
+.comment-tools input {
+  width: 11rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--ink-3);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+.comment-list textarea {
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--ink-3);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.7;
+  resize: vertical;
+}
 .comment-form { display: flex; flex-direction: column; margin-top: 1.6rem; }
 .comment-form label { margin: 0.8rem 0 0.3rem; font-size: 0.9rem; font-weight: 700; }
 .comment-form input, .comment-form textarea {
@@ -326,7 +360,10 @@ html:not(.js) .share { display: none; }
   color: var(--ink);
   font: inherit;
 }
-.comment-form #comment-name { max-width: 16rem; }
+.comment-who { display: flex; flex-wrap: wrap; gap: 0 1rem; }
+.comment-who > div { display: flex; flex: 0 1 16rem; flex-direction: column; min-width: 0; }
+.comment-who > div[hidden] { display: none; }
+.comment-form label .opt { color: var(--ink-3); font-weight: 400; }
 .comment-form textarea { line-height: 1.7; resize: vertical; }
 /* 자동 프로그램만 채우는 칸: 사람에게는 보이지 않는다 */
 .comment-form .comment-url { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }

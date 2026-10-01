@@ -90,31 +90,82 @@ _data/itemmoves/            ← (있을 때만) 항목을 다른 항목 아래�
 
 ## 댓글
 
-글 아래에 댓글 칸이 있습니다. 누구나 이름(비우면 익명)과 내용만 적으면 쓸 수 있고, 쓰는 즉시 보입니다. 로그인도 승인도 없습니다.
+글 아래에 댓글 칸이 있습니다. 누구나 이름(비우면 익명)과 내용만 적으면 쓸 수 있고, 쓰는 즉시 보입니다. 가입도 승인도 없습니다.
 
+- **자기 댓글 고치기·지우기**: 댓글을 쓴 그 브라우저에서는 자기 댓글 아래에 `고치기`·`지우기` 가 보입니다. (처음 댓글을 쓸 때 그 브라우저에 이름 없는 계정이 하나 만들어지고, 그 계정으로 쓴 댓글만 바꿀 수 있습니다. 다른 기기나 방문 기록을 지운 브라우저에서는 바꿀 수 없습니다.)
+- **비밀번호로 고치기·지우기**: 댓글을 쓸 때 비밀번호(선택, 4자 이상)를 적어 두면 다른 기기·다른 브라우저에서도 그 댓글의 `고치기`·`지우기` 를 누르고 비밀번호를 넣어 바꿀 수 있습니다. 비밀번호는 그대로 보내거나 저장하지 않고 바꾼 값만 저장하며, 그 값은 아무도 읽을 수 없는 자리에 들어갑니다. 비밀번호는 나중에 바꾸거나 찾을 수 없습니다.
+- **글쓴이의 댓글 관리**: 글 쓰기 화면의 `댓글 관리` 에서 로그인하면 그 브라우저에서는 모든 댓글에 `지우기` 가 보이고, 글쓴이가 쓴 댓글에는 `글쓴이` 표시가 붙습니다.
 - 댓글은 사이트 파일이 아니라 Firebase(Google 의 무료 저장 서비스)에 들어갑니다. `_config.yml` 의 `comments_project` 에 Firebase 프로젝트 ID 를 적으면 켜지고, 비우면 댓글 칸이 나오지 않습니다.
-- Firebase 쪽 준비: 프로젝트 만들기 → Firestore Database 만들기 → 규칙(Rules)에 아래를 붙여 넣고 게시.
+- Firebase 쪽 준비
+  1. 프로젝트 만들기 → Firestore Database 만들기
+  2. Authentication → 로그인 방법에서 **익명** 과 **이메일/비밀번호** 를 켭니다
+  3. Authentication → 사용자 → 사용자 추가로 글쓴이 계정(이메일·비밀번호)을 하나 만듭니다. 목록에 나오는 **사용자 UID** 를 `_config.yml` 의 `comments_owner_uid` 에 적습니다
+  4. 프로젝트 설정(톱니바퀴) → 일반 의 **웹 API 키** 를 `_config.yml` 의 `comments_api_key` 에 적습니다 (공개해도 되는 값입니다. 비밀번호는 어디에도 적지 않습니다)
+  5. Firestore Database → 규칙에 아래를 붙여 넣고 `글쓴이_UID` 를 3번의 사용자 UID 로 바꾼 뒤 게시
 
   ```
   rules_version = '2';
   service cloud.firestore {
     match /databases/{database}/documents {
       match /pages/{page}/comments/{comment} {
+        function ok(d) {
+          return d.name is string && d.name.size() <= 30
+              && d.text is string && d.text.size() > 0 && d.text.size() <= 2000;
+        }
+        // 비밀번호를 맞혀 이 댓글을 쓴 사람으로 확인된 브라우저인가
+        function claimed() {
+          return exists(/databases/$(database)/documents/pages/$(page)/comments/$(comment)/claims/$(request.auth.uid));
+        }
+        function writer() {
+          return request.auth.uid == resource.data.get('uid', '') || claimed();
+        }
+
         allow read: if true;
-        allow create: if request.resource.data.keys().hasOnly(['name', 'text'])
-                      && request.resource.data.name is string
-                      && request.resource.data.name.size() <= 30
-                      && request.resource.data.text is string
-                      && request.resource.data.text.size() > 0
-                      && request.resource.data.text.size() <= 2000;
-        allow update, delete: if false;
+        allow create: if ok(request.resource.data)
+                      && (request.resource.data.keys().hasOnly(['name', 'text'])
+                          || (request.auth != null
+                              && request.resource.data.keys().hasOnly(['name', 'text', 'uid', 'pw'])
+                              && request.resource.data.uid == request.auth.uid
+                              && (!('pw' in request.resource.data)
+                                  || (request.resource.data.pw == true
+                                      && existsAfter(/databases/$(database)/documents/pages/$(page)/comments/$(comment)/secret/key)))));
+        allow update: if request.auth != null && writer()
+                      && request.resource.data.keys().hasOnly(['name', 'text', 'uid', 'pw', 'edited'])
+                      && request.resource.data.uid == resource.data.uid
+                      && request.resource.data.name == resource.data.name
+                      && request.resource.data.get('pw', false) == resource.data.get('pw', false)
+                      && request.resource.data.edited == true
+                      && ok(request.resource.data);
+        allow delete: if request.auth != null
+                      && (request.auth.uid == '글쓴이_UID' || writer());
+
+        // 댓글 비밀번호를 한 번 더 섞어 바꾼 값. 아무도 읽을 수 없다
+        match /secret/{doc} {
+          allow read: if false;
+          allow create: if doc == 'key' && request.auth != null
+                        && getAfter(/databases/$(database)/documents/pages/$(page)/comments/$(comment)).data.uid == request.auth.uid
+                        && request.resource.data.keys().hasOnly(['hash'])
+                        && request.resource.data.hash is string
+                        && request.resource.data.hash.size() == 64;
+        }
+        // 비밀번호를 맞힌 브라우저의 기록. 맞는 비밀번호일 때만 만들어진다
+        match /claims/{uid} {
+          allow read: if false;
+          allow create: if request.auth != null && request.auth.uid == uid
+                        && request.resource.data.keys().hasOnly(['k'])
+                        && request.resource.data.k is string
+                        && request.resource.data.k.size() == 64
+                        && hashing.sha256(request.resource.data.k).toHexString().lower()
+                           == get(/databases/$(database)/documents/pages/$(page)/comments/$(comment)/secret/key).data.hash;
+        }
       }
     }
   }
   ```
 
-- 규칙의 뜻: 누구나 읽고 새로 쓸 수 있지만, 이름 30자·내용 2000자까지만 되고, 남이 쓴 댓글을 고치거나 지울 수는 없습니다.
-- 댓글 지우기: Firebase 콘솔 → Firestore Database → `pages` 아래에서 해당 댓글을 찾아 지웁니다. (`pages` 바로 아래 이름은 글 파일 경로를 글자로 바꾼 것입니다.)
+- 규칙의 뜻: 누구나 읽고 쓸 수 있습니다(이름 30자·내용 2000자까지). 댓글에 적히는 계정 번호는 쓴 사람 자신의 것만 됩니다. 고치기는 쓴 사람과 비밀번호를 맞힌 사람만(내용만), 지우기는 거기에 글쓴이까지 됩니다. 비밀번호를 바꾼 값(`secret`)과 맞힌 기록(`claims`)은 아무도 읽을 수 없습니다.
+- 댓글을 지워도 그 댓글의 `secret`·`claims` 기록은 Firebase 에 남습니다(아주 작고, 보이지 않습니다).
+- `comments_api_key` 를 비워 두면 고치기·지우기 없이 쓰기만 됩니다. 그때 지우려면 Firebase 콘솔 → Firestore Database → `pages` 아래에서 찾아 지웁니다. (`pages` 바로 아래 이름은 글 파일 경로를 글자로 바꾼 것입니다.)
 - 댓글에는 글자만 들어갑니다. 꾸밈이나 링크 태그를 적어도 글자 그대로 보입니다.
 
 ## 브라우저에서 쓰기
@@ -259,6 +310,6 @@ _data/itemmoves/            ← (있을 때만) 항목을 다른 항목 아래�
 | `assets/js/site.js` | 고른 항목 표시·펼침, 고른 항목의 글만 남기기, 좁은 화면의 `항목` 단추, 주인 전용 링크(항목 만들기·이름 바꾸기·지우기, 글 끌어 옮기기·지우기), 링크 복사·공유, 복사할 때 출처 붙이기 |
 | `write.html`, `write-about.html`, `assets/js/write.js` | 글 쓰기 화면과 소개 글 고치기 화면: GitHub 연결, 임시저장(브라우저 안에만), 게시·저장하기, 그림 넣기, 미리보기 |
 | `assets/js/marked.min.js` | 미리보기용 마크다운 변환 도구 (남이 만든 공개 도구 marked, MIT 라이선스) |
-| `assets/js/comments.js` | 글 아래 댓글: Firebase 에서 불러오고 올림 |
+| `assets/js/comments.js` | 글 아래 댓글: Firebase 에서 불러오고 올림, 고치기·지우기 |
 | `version.json` | 사이트가 언제 만들어졌는지 적힌 작은 파일. 저장한 내용이 반영됐는지 알아보는 데 씀 |
 | `assets/css/style.css` | 모양 전부 |
