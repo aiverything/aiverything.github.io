@@ -101,6 +101,9 @@
   </div>
 
   <script src="{{ '/assets/js/site.js' | relative_url }}"></script>
+  {%- if site.comments_project and page.collection == 'writing' %}
+  <script src="{{ '/assets/js/comments.js' | relative_url }}"></script>
+  {%- endif %}
   {%- if page.writer %}
   <script src="{{ '/assets/js/marked.min.js' | relative_url }}"></script>
   <script src="{{ '/assets/js/write.js' | relative_url }}"></script>

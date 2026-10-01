@@ -305,6 +305,36 @@ html:not(.js) .share { display: none; }
 .share button:hover { border-color: var(--ink); background: var(--side); }
 .share-note { color: var(--ink-2); font-size: 0.9rem; }
 
+/* 댓글 */
+.comments { margin-top: 3.5rem; }
+.comments .list-head { margin-top: 0; }
+.comments .list-head .count { margin-left: 0.3rem; }
+.comment-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink); }
+.comment-list li { padding: 0.9rem 0; border-bottom: 1px solid var(--rule); }
+.comment-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin: 0 0 0.25rem; }
+.comment-head .who { min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+.comment-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comments .empty { margin: 0.9rem 0 0; }
+.comment-form { display: flex; flex-direction: column; margin-top: 1.6rem; }
+.comment-form label { margin: 0.8rem 0 0.3rem; font-size: 0.9rem; font-weight: 700; }
+.comment-form input, .comment-form textarea {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--ink-3);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+.comment-form #comment-name { max-width: 16rem; }
+.comment-form textarea { line-height: 1.7; resize: vertical; }
+/* 자동 프로그램만 채우는 칸: 사람에게는 보이지 않는다 */
+.comment-form .comment-url { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.comment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.8rem; margin-top: 0.8rem; }
+.comment-actions .hint, .comment-note { color: var(--ink-2); font-size: 0.9rem; }
+.comment-note { margin: 0.6rem 0 0; color: var(--ink-3); font-size: 0.85rem; }
+.go:disabled { border-color: var(--rule); background: var(--rule); color: var(--ink-3); cursor: default; }
+
 /* 같은 항목의 앞뒤 글 */
 .post-nav {
   display: grid;

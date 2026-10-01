@@ -88,6 +88,35 @@ _data/itemmoves/            ← (있을 때만) 항목을 다른 항목 아래�
 - 바로 저장되는 커밋에는 필명(`_config.yml` 의 `author`)과 GitHub 의 비공개용 메일 주소가 적힙니다.
 - 글 쓰기 화면의 `미리보기` 는 본문이 사이트에 나올 모습을 대략 보여 줍니다. 방금 올린 그림도 보입니다.
 
+## 댓글
+
+글 아래에 댓글 칸이 있습니다. 누구나 이름(비우면 익명)과 내용만 적으면 쓸 수 있고, 쓰는 즉시 보입니다. 로그인도 승인도 없습니다.
+
+- 댓글은 사이트 파일이 아니라 Firebase(Google 의 무료 저장 서비스)에 들어갑니다. `_config.yml` 의 `comments_project` 에 Firebase 프로젝트 ID 를 적으면 켜지고, 비우면 댓글 칸이 나오지 않습니다.
+- Firebase 쪽 준비: 프로젝트 만들기 → Firestore Database 만들기 → 규칙(Rules)에 아래를 붙여 넣고 게시.
+
+  ```
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /pages/{page}/comments/{comment} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasOnly(['name', 'text'])
+                      && request.resource.data.name is string
+                      && request.resource.data.name.size() <= 30
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 2000;
+        allow update, delete: if false;
+      }
+    }
+  }
+  ```
+
+- 규칙의 뜻: 누구나 읽고 새로 쓸 수 있지만, 이름 30자·내용 2000자까지만 되고, 남이 쓴 댓글을 고치거나 지울 수는 없습니다.
+- 댓글 지우기: Firebase 콘솔 → Firestore Database → `pages` 아래에서 해당 댓글을 찾아 지웁니다. (`pages` 바로 아래 이름은 글 파일 경로를 글자로 바꾼 것입니다.)
+- 댓글에는 글자만 들어갑니다. 꾸밈이나 링크 태그를 적어도 글자 그대로 보입니다.
+
 ## 브라우저에서 쓰기
 
 사이트 주소 끝에 `?write=on` 을 붙여 한 번 들어가면(예: `https://aiverything.github.io/?write=on`) **그 브라우저에서만** 아래 링크가 보입니다.
@@ -230,5 +259,6 @@ _data/itemmoves/            ← (있을 때만) 항목을 다른 항목 아래�
 | `assets/js/site.js` | 고른 항목 표시·펼침, 고른 항목의 글만 남기기, 좁은 화면의 `항목` 단추, 주인 전용 링크(항목 만들기·이름 바꾸기·지우기, 글 끌어 옮기기·지우기), 링크 복사·공유, 복사할 때 출처 붙이기 |
 | `write.html`, `write-about.html`, `assets/js/write.js` | 글 쓰기 화면과 소개 글 고치기 화면: GitHub 연결, 임시저장(브라우저 안에만), 게시·저장하기, 그림 넣기, 미리보기 |
 | `assets/js/marked.min.js` | 미리보기용 마크다운 변환 도구 (남이 만든 공개 도구 marked, MIT 라이선스) |
+| `assets/js/comments.js` | 글 아래 댓글: Firebase 에서 불러오고 올림 |
 | `version.json` | 사이트가 언제 만들어졌는지 적힌 작은 파일. 저장한 내용이 반영됐는지 알아보는 데 씀 |
 | `assets/css/style.css` | 모양 전부 |
