@@ -1,10 +1,12 @@
 ---
-title: "Moshi: Full Duplex 음성 대화의 기준점"
+title: "Moshi: Full Duplex 음성 대화의 기준점 - Full Summary"
 date: 2026-10-03 02:27
 summary: "듣는 동안에도 말하는 음성 대화 모델 Moshi를 구조와 숫자 위주로 정리했습니다."
 ---
 
+뭐 부터 시작할까 고민하다
 Full Duplex 음성 대화 모델의 기준점인 Moshi부터 정리합니다.
+이걸 이해하면 후속 연구의 Variation은 이해가 쉽습니다.
 
 ## 논문 정보
 
