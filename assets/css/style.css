@@ -15,7 +15,7 @@
   --font-title: "Hahmlet", "Noto Serif KR", "AppleMyungjo", "Batang", serif;
   /* 본문 글꼴은 _config.yml 의 font 값으로 고른다 (gothic / myeongjo) */
   --font-body: "Noto Sans KR", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --font-code: "IBM Plex Mono", "D2Coding", ui-monospace, Menlo, Consolas, monospace;
+  --font-code: "IBM Plex Mono", "D2Coding", ui-monospace, Menlo, Consolas, "Noto Sans KR", "Noto Serif KR", monospace;  /* 코드 안의 한글은 본문 글꼴로 */
   --w-body: 400;
 }
 .font-myeongjo {
