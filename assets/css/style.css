@@ -288,6 +288,11 @@ main { min-height: 60vh; }
 }
 .post-body th, .post-body td { padding: 0.5rem 1rem; border-bottom: 1px solid var(--rule); text-align: left; }
 .post-body th { border-bottom-color: var(--ink); font-weight: 700; }
+/* 좁은 화면에서는 표 칸 여백을 줄여 옆으로 넘치지 않게 */
+@media (max-width: 640px) {
+  .post-body table { font-size: 0.88rem; }
+  .post-body th, .post-body td { padding: 0.45rem 0.5rem; }
+}
 
 /* 글 끝의 링크 복사·공유 단추 (스크립트가 있어야 동작하므로 없으면 감춘다) */
 .share { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 3rem; }
