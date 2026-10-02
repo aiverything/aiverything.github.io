@@ -108,13 +108,13 @@ var writeKit = (function () {
       ? '그림은 본문 칸에 붙여 넣거나(Ctrl+V) 파일을 끌어다 놓으면 커서가 있는 자리에 들어갑니다. 큰 사진은 자동으로 줄여서 올립니다.'
       : '그림을 넣으려면 GitHub 연결이 필요합니다 (글 쓰기 쪽 맨 위).';
   }
-  // 본문을 미리보기 칸에 그린다
+  // 본문을 미리보기 칸에 그린다 (엔터 한 번은 줄바꿈: 사이트의 kramdown hard_wrap 과 같게)
   function preview(area, target) {
     if (!window.marked) {
       target.textContent = '미리보기를 준비하지 못했습니다.';
       return;
     }
-    target.innerHTML = window.marked.parse(area.value, { mangle: false, headerIds: false });
+    target.innerHTML = window.marked.parse(area.value, { mangle: false, headerIds: false, breaks: true });
     Array.prototype.forEach.call(target.querySelectorAll('img'), function (img) {
       var src = img.getAttribute('src');
       if (fresh[src]) img.src = fresh[src];

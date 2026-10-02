@@ -16,6 +16,8 @@ comments_owner_uid: K6wZFPfxbKeKnIjEfzcIxiZliNm1   # Firebase Authentication 에
 lang: ko
 timezone: Asia/Seoul
 markdown: kramdown
+kramdown:
+  hard_wrap: true   # 본문에서 엔터 한 번 = 줄바꿈, 빈 줄 = 문단 나눔
 future: true   # 날짜가 앞선 글도 올리는 즉시 보이게 (숨기려면 글 머리말에 published: false)
 
 # 글은 모두 _writing/ 아래에 둡니다: 첫 단계 폴더 = Section, 그 아래 폴더 = 소주제

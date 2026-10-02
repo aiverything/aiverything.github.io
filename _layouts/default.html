@@ -42,7 +42,7 @@
   {%- else -%}
     {%- assign meta_title = page.title | append: ' | ' | append: site.title -%}
   {%- endif -%}
-  {%- assign meta_desc = page.summary | default: page.description | default: page.excerpt | default: intro | strip_html | strip_newlines | strip | truncate: 160 %}
+  {%- assign meta_desc = page.summary | default: page.description | default: page.excerpt | default: intro | strip_html | normalize_whitespace | truncate: 160 %}
   <title>{{ meta_title | escape }}</title>
   <meta name="description" content="{{ meta_desc | escape }}">
   <meta name="author" content="{{ site.author | escape }}">
