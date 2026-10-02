@@ -254,6 +254,10 @@ main { min-height: 60vh; }
 .post-body blockquote p:last-child { margin-bottom: 0; }
 .post-body hr { width: 4rem; margin: 2.8em 0; border: 0; border-top: 1px solid var(--ink-3); }
 .post-body img { display: block; max-width: 100%; height: auto; margin: 2em 0; }
+/* 그림 바로 아랫줄에 *기울임*으로 쓴 글은 그림 설명으로 작게 붙인다 */
+.post-body img:has(+ br + em) { margin-bottom: 0.6rem; }
+.post-body img + br + em { display: block; margin-bottom: 2em; color: var(--ink-3); font-size: 0.85rem; font-style: normal; line-height: 1.6; }
+.post-body img + br + em a { color: inherit; }
 
 /* 코드와 표 */
 .post-body code {

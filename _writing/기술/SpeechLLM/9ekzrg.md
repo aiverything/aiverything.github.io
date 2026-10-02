@@ -28,53 +28,20 @@ Full Duplex 음성 대화 모델의 기준점인 Moshi부터 정리합니다.
   1. 단계마다 지연이 쌓여 몇 초씩 기다립니다.
   2. 가운데가 글자라서 감정, 억양, 주변 소리가 사라집니다.
   3. 차례를 나눠야 해서 겹쳐 말하기, 끼어들기, 맞장구를 다루지 못합니다. 사람 대화에서 겹쳐 말하는 시간은 10~20%나 됩니다.
-- Moshi는 차례를 나누지 않습니다. 듣는 흐름과 말하는 흐름을 늘 함께 돌리고, 할 말이 없을 때는 "조용한 소리"를 냅니다.
-
-```
-Turn-based (ASR -> LLM -> TTS)
-
-  user   |==== speaks ====|                                  |== next ==|
-  system                    [ASR][LLM][TTS] |== answers ==|
-                            <- waiting -->
-
-Full duplex (Moshi)
-
-  user   |==== speaks ====|       |=uh-huh=|
-  Moshi        |=mm=|       |====== answers ======|
-         <------ both streams move every 80 ms ------>
-```
+- Moshi는 차례를 나누지 않습니다. 듣는 흐름과 말하는 흐름을 늘 함께 돌리고, 할 말이 없을 때는 "조용한 소리"를 냅니다. 두 사람의 말이 겹쳐도 각자의 흐름에 따로 들어갑니다(그림 4).
 
 ## 구조 한눈에
 
-```
- user mic 24 kHz
-        |
-        v
- +--------------+  8 tokens / 80 ms
- | Mimi encoder | -------------------+
- +--------------+                    |
-                                     v
- +-------------------------------------------------------+
- | Temporal Transformer   (7B, starts from Helium)       |
- |   runs once every 80 ms, reads all past tokens        |
- +-------------------------------------------------------+
-                                     | context
-                                     v
- +-------------------------------------------------------+
- | Depth Transformer   (6 layers, small)                 |
- |   Moshi text -> Moshi semantic -> Moshi acoustic x7   |
- +-------------------------------------------------------+
-          |                          |
-          v                          v
-   text (not spoken)          +--------------+
-                              | Mimi decoder | --> Moshi voice 24 kHz
-                              +--------------+
-```
+![Moshi 전체 구조: 사용자 소리와 Moshi 소리, Moshi의 글자 흐름이 RQ-Transformer로 들어가는 그림](/assets/img/2610/moshi-fig1.png)
+*그림 1. Moshi 전체 구조. 사용자 소리, Moshi 소리, Moshi의 글자(Inner Monologue)가 80ms(12.5Hz)마다 한 칸씩 함께 들어갑니다. 출처: [Défossez et al., 2024](https://arxiv.org/abs/2410.00037), Figure 1, [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)*
 
 - 80ms마다 이 과정을 한 번 돕니다. 다음 칸에는 Moshi가 방금 낸 토큰 9개와 마이크에서 들어온 사용자 토큰 8개가 함께 들어갑니다.
 - 구성 요소는 넷입니다. 소리를 토큰으로 바꾸는 Mimi, 뼈대 언어 모델 Helium, 토큰을 뽑는 RQ-Transformer, 자기 말을 글자로도 적는 Inner Monologue.
 
 ### Mimi: 소리를 토큰으로
+
+![Mimi의 구조와 학습: 인코더, 갈라 놓은 양자화, 디코더, WavLM 증류](/assets/img/2610/moshi-fig2.png)
+*그림 2. Mimi의 구조와 학습. WavLM의 정보를 의미 토큰 하나로 증류하고(Distillation), 음향은 따로 RVQ로 양자화한 뒤 더합니다(Split RVQ). 출처: [Défossez et al., 2024](https://arxiv.org/abs/2410.00037), Figure 2, [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)*
 
 - 24kHz 소리를 80ms마다(12.5Hz) 토큰 8개로 바꿉니다. 코드북 하나에 2,048개라 1.1kbps입니다.
 - 8개 중 첫째는 의미 토큰입니다. 자기지도 음성 모델 WavLM이 가진 발음 정보를 증류해 넣었습니다. 나머지 7개는 목소리와 음질을 담는 음향 토큰입니다.
@@ -104,27 +71,27 @@ Full duplex (Moshi)
 - 이걸 한 줄로 펴서 예측하면 1초에 200번 넘게 모델을 돌려야 합니다. 그래서 둘로 나눴습니다.
   - Temporal Transformer (7B, Helium에서 시작): 80ms에 한 번만 돌며 지난 칸들을 보고 문맥을 만듭니다.
   - Depth Transformer (6층, 폭 1,024): 그 문맥으로 한 칸 안의 토큰을 하나씩 차례로 뽑습니다. 토큰 자리마다 가중치를 따로 둡니다.
+
+![RQ-Transformer: Temporal Transformer가 만든 문맥으로 Depth Transformer가 한 칸 안의 토큰을 차례로 뽑는 그림](/assets/img/2610/moshi-fig3.png)
+*그림 3. RQ-Transformer. 큰 Temporal Transformer가 지난 칸들로 문맥 z(s)를 만들고, 작은 Depth Transformer가 한 칸 안의 토큰을 차례로 뽑습니다(그림은 토큰 4개 예시). 출처: [Défossez et al., 2024](https://arxiv.org/abs/2410.00037), Figure 3, [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)*
+
 - Acoustic delay: 음향 토큰을 의미 토큰보다 한 칸(80ms) 늦게 둡니다. 의미와 음향의 관계를 큰 모델이 시간 축에서 다루게 되어 생성이 안정됩니다. 사전학습에서는 두 칸, 최종 모델은 한 칸입니다.
 - 의미 토큰의 손실 가중치는 100, 음향 토큰은 1입니다. 글자 토큰 하나가 소리 토큰 전체와 같은 비중입니다.
 
-한 칸에 들어가는 토큰을 다시 그리면 이렇습니다. 위에서 아래 순서로 뽑습니다.
+한 칸에 들어가는 토큰은 그림 4와 같습니다.
 
-| 80ms 칸 | 1 | 2 | 3 | 4 |
-|---|---|---|---|---|
-| Moshi 글자 | `Hello` | `PAD` | `EPAD` | `I'm` |
-| Moshi 의미 | S1 | S2 | S3 | S4 |
-| Moshi 음향 ×7 | – | A1 | A2 | A3 |
-| 사용자 의미 | U1 | U2 | U3 | U4 |
-| 사용자 음향 ×7 | – | B1 | B2 | B3 |
+![Moshi가 모델링하는 토큰 배치: 아래는 Moshi 흐름(글자, 의미, 음향), 위는 사용자 흐름(의미, 음향)](/assets/img/2610/moshi-fig4.png)
+*그림 4. Moshi가 모델링하는 토큰 배치. 한 열이 한 칸(80ms)이고, 점선 아래가 Moshi, 위가 사용자입니다. 출처: [Défossez et al., 2024](https://arxiv.org/abs/2410.00037), Figure 4, [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)*
 
-- 숫자는 몇 번째 80ms의 소리인지입니다. 음향 토큰은 한 칸 늦게 들어갑니다.
-- 실제로 쓸 때는 위 세 줄(Moshi)만 뽑고, 아래 두 줄(사용자)은 마이크에서 들어온 것을 그대로 넣습니다.
+- A의 아래 첨자는 (몇 번째 칸, 몇 번째 코드북)입니다. 음향 토큰은 의미 토큰보다 한 칸 늦게 들어가서 첫 칸이 0입니다.
+- 한 칸 안에서는 아래에서 위로 뽑습니다. 점선 아래 Moshi 쪽은 모델이 뽑고, 위 사용자 쪽은 마이크에서 들어온 것을 그대로 넣습니다.
+- 말풍선처럼 두 사람의 말이 겹쳐도 흐름이 따로라서 문제가 없습니다.
 - 지연은 Mimi 한 칸 80ms에 acoustic delay 80ms를 더해 이론상 160ms입니다. L4 GPU에서 실제로는 200ms 정도입니다. 사람 대화의 평균 응답 간격 230ms(10개 언어)보다 짧습니다.
 
 ### Inner Monologue: 말하기 전에 글자로 먼저
 
 - Moshi는 자기 말을 글자로도 같이 냅니다. 한 칸 안에서 글자 토큰을 먼저 뽑고 그다음 소리 토큰을 뽑습니다.
-- 맞추는 법: 학습 데이터의 Moshi 쪽 말을 Whisper로 받아 적고, 단어가 시작하는 칸에 그 단어의 글자 토큰을 놓습니다. 단어 사이는 PAD로 채우고 다음 단어 바로 앞 칸에 EPAD를 둡니다.
+- 맞추는 법: 학습 데이터의 Moshi 쪽 말을 Whisper로 받아 적고, 단어가 시작하는 칸에 그 단어의 글자 토큰을 놓습니다. 단어 사이는 PAD로 채우고 다음 단어 바로 앞 칸에 EPAD를 둡니다. 그림 4의 맨 아래 줄이 이 모양입니다.
 - 영어 대화에서는 글자 칸의 약 65%가 PAD입니다.
 - 사용자 말은 글자로 받아 적지 않습니다. 실시간 받아쓰기가 어렵고, 외부 음성 인식에 기대면 소리에서 소리로 가는 구조가 깨지기 때문입니다.
 - 효과가 가장 컸던 장치입니다.
@@ -216,4 +183,5 @@ Fisher 대화 10초를 앞에 주고 Moshi가 양쪽을 다 이어 만든 대화
 ## 출처
 
 - Défossez et al., "Moshi: a speech-text foundation model for real-time dialogue", arXiv:2410.00037, 2024.
-- 글 속 그림과 표는 논문 내용을 바탕으로 다시 그리고 정리한 것입니다.
+- 그림 1~4는 논문의 Figure 1~4를 웹에 맞게 크기만 줄여 실었습니다(내용은 그대로). 논문이 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)로 공개되어 있어 출처를 밝히고 비상업적으로 쓸 수 있습니다. 그림에는 이 사이트의 저작권 안내가 아니라 이 조건이 적용됩니다.
+- 표는 논문의 숫자로 다시 정리한 것입니다.
