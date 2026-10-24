@@ -1,21 +1,30 @@
 ---
-title: "UI UX Pro Max: 소개와 Claude 설치 방법"
+title: "UI UX Pro Max: AI가 만든 화면이 다 비슷해 보일 때"
 date: 2026-10-24 11:14
-summary: "AI 코딩 도구에 UI·UX 디자인 자료를 붙여 주는 스킬 UI UX Pro Max를 소개하고, Claude에 설치하는 방법을 정리했습니다."
+summary: "GitHub 별 13만 9천 개를 받은 디자인 스킬 UI UX Pro Max가 누구의 어떤 문제를 풀어 주는지, Claude에는 어떻게 설치하는지 정리했습니다."
 ---
 
-## 기본 정보
+AI에게 화면을 만들어 달라고 하면 결과가 어딘가 다 비슷합니다.
+보라색 그라데이션, 이모지 아이콘, 어디서 본 듯한 배치.
+UI UX Pro Max는 이런 화면을 업종에 맞는 디자인으로 바꿔 주는 스킬입니다. README도 피해야 할 것으로 "AI 느낌의 보라·분홍 그라데이션"과 "아이콘 대신 쓴 이모지"를 꼽습니다.
 
-- 저장소: [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
-- 만든 곳: Next Level Builder
-- 이용 조건: MIT (무료, 오픈소스)
-- 판: v2.15.0 (2026년 8월 배포, 이 글은 2026년 10월 기준)
-- 누리집: [uupm.cc](https://uupm.cc)
+- GitHub 별 **13만 9천 개**, 포크 1만 4천 개. 2025년 11월 말에 공개되고 1년이 안 돼 쌓인 숫자입니다.
+- 설치 도구(npm)는 한 달에 **6만 6천 번** 넘게 내려받힙니다.
+- MIT 라이선스라 무료로 씁니다.
+- 숫자는 모두 2026년 10월 24일 기준입니다.
 
-## 한 줄 요약
+## 이런 분께 좋습니다
 
-- AI 코딩 도구가 화면을 만들 때 참고할 디자인 자료와 규칙을 찾아서 넣어 주는 스킬입니다.
-- Claude Code, Cursor, Windsurf, GitHub Copilot 등 20개 넘는 도구에서 쓸 수 있습니다.
+| 이런 상황이라면 | 이렇게 도와줍니다 |
+|---|---|
+| 디자이너 없이 혼자 랜딩 페이지나 대시보드를 만들어야 한다 | 업종에 맞는 페이지 구성, 스타일, 색, 글꼴을 한 벌로 골라 줍니다 |
+| AI가 만든 화면이 다 비슷해 보인다 | 업종마다 피해야 할 패턴을 걸러 내서 흔한 "AI 티"를 줄입니다 |
+| 병원, 은행, 스파처럼 업종 분위기를 맞춰야 한다 | 업종 규칙이 192가지 있습니다. 예를 들어 은행 앱에는 보라·분홍 그라데이션을 쓰지 말라는 식입니다 |
+| 접근성과 반응형을 자주 빠뜨린다 | 넘기기 전 점검표로 글자 대비 4.5:1, 키보드 초점, 375~1440px 화면을 확인하게 합니다 |
+| 이미 만든 앱의 분위기만 바꾸고 싶다 | 구조와 동작은 그대로 두고 색, 글꼴, 간격 같은 토큰만 바꾸는 절차를 안내합니다 |
+| Claude Code, Cursor, Copilot을 섞어 쓴다 | 같은 자료를 도구마다 똑같이 설치할 수 있습니다 |
+
+- 디자이너와 자체 디자인 시스템이 이미 있는 팀이라면 그쪽 규칙이 먼저입니다. 이 스킬은 참고 자료로 쓰면 됩니다.
 
 ## 들어 있는 자료
 
@@ -132,6 +141,14 @@ python3 .claude/skills/ui-ux-pro-max/scripts/search.py "form validation" --stack
 - 첫 줄은 위 예시처럼 디자인 시스템 한 벌을 만듭니다.
 - 둘째 줄은 스타일만, 셋째 줄은 React 지침만 찾습니다.
 - --persist를 붙이면 design-system/프로젝트이름/MASTER.md에 저장하고, --page로 페이지별 규칙 파일을 따로 만들 수 있습니다.
+
+## 기본 정보
+
+- 저장소: [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
+- 만든 곳: Next Level Builder
+- 이용 조건: MIT (무료, 오픈소스)
+- 판: v2.15.0 (2026년 8월 배포, 이 글은 2026년 10월 기준)
+- 누리집: [uupm.cc](https://uupm.cc)
 
 ## 참고
 
